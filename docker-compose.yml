@@ -1,0 +1,28 @@
+services:
+  api:
+    build: ./storia-api .
+    container_name: storia-api
+    restart: unless-stopped
+    env_file:
+      - ./storia-api/.env
+    ports:
+      - "3000:3000"
+    networks:
+      - storia-net
+
+  web:
+    build: ./storia-cliente .
+    container_name: storia-cliente
+    restart: always
+    env_file:
+      - ./storia-cliente/.env
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+    networks:
+      - storia-net
+
+networks:
+  storia-net:
+    driver: bridge
