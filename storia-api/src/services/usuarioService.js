@@ -85,6 +85,7 @@ const handleGoogleSignIn = async (session) => {
       .insert({
         nome: user.user_metadata.full_name || user.email,
         email: user.email,
+        telefone: "Não informado",
       })
       .select()
       .single();
