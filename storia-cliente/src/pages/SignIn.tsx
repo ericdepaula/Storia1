@@ -48,6 +48,35 @@ const SignIn = () => {
   useEffect(() => {
     const validationErrors = validate(formData);
     setErrors(validationErrors);
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_IN" && session) {
+        setIsLoading(true);
+        fetch(
+          `${
+            import.meta.env.VITE_API_BASE_URL
+          }/api/usuarios/auth/google/callback`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ session }),
+          }
+        )
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.token) {
+              localStorage.setItem("authToken", data.token);
+              localStorage.setItem("userInfo", JSON.stringify(data.usuario));
+              navigate("/dashboard");
+            }
+          })
+          .finally(() => setIsLoading(false));
+      }
+    });
+    return () => subscription.unsubscribe();
   }, [formData, validate]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
