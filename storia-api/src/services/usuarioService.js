@@ -80,11 +80,16 @@ const handleGoogleSignIn = async (session) => {
   }
 
   if (!usuario) {
+
+    const placeholderPassword = `oauth_google_${user.id}`;
+    const senhaHash = await bcrypt.hash(placeholderPassword, parseInt(process.env.PASSWORD_SALT_ROUNDS));
+
     const { data: novoUsuario, error: insertError } = await supabase
       .from("usuarios")
       .insert({
         nome: user.user_metadata.full_name || user.email,
         email: user.email,
+        senha: senhaHash,
         telefone: "Não informado",
       })
       .select()
