@@ -63,6 +63,43 @@ const autenticarUsuario = async (credentials) => {
   };
 };
 
+const handleGoogleSignIn = async () => {
+  if (!session || !session.user) {
+    throw { status: 400, message: "Sessao invalida." };
+  }
+  const { user } = session;
+
+  let { data: usuario, error } = await supabase
+    .from("usuarios")
+    .select("*")
+    .eq("email", user.email)
+    .single();
+
+  if (error && error.code !== 'PGRST116') { // PGRST116 means no rows found
+    throw { status: 500, message: error.message };
+  }
+
+  if (!usuario) {
+    const { data: novoUsuario, error: insertError } = await supabase
+      .from(usuarios)
+      .insert({
+        nome: user.user_metadata.full_name || user.email,
+        email: user.email,
+      })
+      .select()
+      .single();
+    if (insertError) {
+      throw { status: 500, message: `Erro ao criar usuário: ${insertError.message}` };
+    }
+    usuario = novoUsuario;
+  }
+  const payload = { id: usuario.id, email: usuario.email, nome: usuario.nome };
+  const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '2h' });
+
+  await supabase.from('usuarios').update({ ultimo_acesso: new Date().toISOString() }).eq('id', usuario.id);
+  return { status: 200, message: 'Login com Google bem-sucedido!', token: token, usuario: payload };
+}
+
 // Função para listar todos os usuários
 const listarTodosUsuarios = async () => {
   try {
@@ -86,5 +123,6 @@ const listarTodosUsuarios = async () => {
 export const usuarioService = {
   cadastrarUsuario,
   autenticarUsuario,
+  handleGoogleSignIn,
   listarTodosUsuarios,
 };

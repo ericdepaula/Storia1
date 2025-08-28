@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { registrar, login, obterTodosUsuarios } from '../controllers/usuarioController.js';
+import { registrar, login, obterTodosUsuarios, googleCallback } from '../controllers/usuarioController.js';
 
 const router = Router();
 
@@ -10,6 +10,7 @@ router.post('/cadastro', registrar);
 // ROTA DE LOGIN
 // Endereço final: POST /usuarios/login
 router.post('/login', login);
+router.post('/google/callback', googleCallback)
 
 // ROTA PARA LISTAR USUÁRIOS
 // Endereço final: GET /usuarios

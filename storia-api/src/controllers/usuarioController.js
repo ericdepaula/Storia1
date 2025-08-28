@@ -25,6 +25,16 @@ export const login = async (req, res) => {
   }
 };
 
+export const googleCallback = async (req, res) => {
+  try {
+    const { session } = req.body;
+    const resultado = await usuarioService.handleGoogleSignIn(session);
+    res.status(resultado.status).json(resultado);
+  } catch (erro) {
+    res.status(erro.status || 500).json({ message: erro.message || 'Ocorreu um problema inesperado.' });
+  }
+};
+
 // Se quisermos listar todos os usuários, podemos criar outra função aqui
 export const obterTodosUsuarios = async (req, res) => {
   try {
