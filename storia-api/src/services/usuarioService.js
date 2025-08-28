@@ -4,8 +4,8 @@ import jwt from 'jsonwebtoken'; // Importa a biblioteca JWT
 
 const cadastrarUsuario = async (userData) => {
   const { nome, email, telefone, senha } = userData;
-  if (!email || !senha || !nome || !telefone) {
-    throw { status: 400, message: 'Nome, email, telefone e senha são obrigatórios.' };
+  if (!email || !senha || !nome) {
+    throw { status: 400, message: 'Nome, email e senha são obrigatórios.' };
   }
 
 
