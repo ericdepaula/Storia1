@@ -10,7 +10,8 @@ router.post('/cadastro', registrar);
 // ROTA DE LOGIN
 // Endereço final: POST /usuarios/login
 router.post('/login', login);
-router.post('/google/callback', googleCallback)
+// Endereco final: POST /usuarios/auth/google/callback
+router.post('/auth/google/callback', googleCallback)
 
 // ROTA PARA LISTAR USUÁRIOS
 // Endereço final: GET /usuarios

@@ -63,7 +63,7 @@ const autenticarUsuario = async (credentials) => {
   };
 };
 
-const handleGoogleSignIn = async () => {
+const handleGoogleSignIn = async (session) => {
   if (!session || !session.user) {
     throw { status: 400, message: "Sessao invalida." };
   }
@@ -81,7 +81,7 @@ const handleGoogleSignIn = async () => {
 
   if (!usuario) {
     const { data: novoUsuario, error: insertError } = await supabase
-      .from(usuarios)
+      .from("usuarios")
       .insert({
         nome: user.user_metadata.full_name || user.email,
         email: user.email,
