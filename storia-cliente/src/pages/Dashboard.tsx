@@ -2,7 +2,8 @@ import React, { useState } from "react";
 // useNavigate não é mais necessário para o logout, mas pode ser usado em outros lugares.
 import { User, LogOut, Home, FileText, Settings, Menu, X } from "lucide-react";
 import TabInicio from "../components/tabs/TabInicio";
-import { useAuth } from "../context/AuthContext"; // 1. IMPORTE O useAuth
+import { useAuth } from "../context/AuthContext";
+import { supabase } from "../config/supabaseClient";
 
 // A função getUserFromStorage não é mais a fonte da verdade.
 // Podemos pegar o usuário diretamente do nosso contexto.
@@ -24,15 +25,17 @@ const menuItems = [
 const Dashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState("inicio");
 
-  // 2. PEGUE O USUÁRIO E A FUNÇÃO DE LOGOUT DO CONTEXTO
-  const { user, logout } = useAuth();
+  // Pegue apenas o 'user' do contexto. A função de logout será a do supabase.
+  const { user } = useAuth();
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  // 3. SIMPLIFIQUE A FUNÇÃO handleLogout
-  const handleLogout = () => {
-    logout(); // Apenas chame a função do contexto. É só isso!
-    // A navegação será tratada automaticamente pelo ProtectedRoute.
+const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      console.error("Erro ao fazer logout:", error.message);
+    }
+    // Não precisamos de navegar daqui. O AuthContext vai reagir e o App.tsx vai redirecionar.
   };
 
   return (
