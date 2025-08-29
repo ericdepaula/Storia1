@@ -86,7 +86,6 @@ const SignIn = () => {
 
       if (data.token && data.usuario) {
         login(data.token, data.usuario);
-        navigate("/dashboard");
       } else {
         throw new Error("Resposta de login inválida da API.");
       }
