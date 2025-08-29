@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { Eye, EyeOff, Mail, Lock, Loader2, AlertCircle } from "lucide-react";
 import TimedSnackbar from "../components/TimedSnackbar";
 import { supabase } from "../config/supabaseClient";
@@ -35,7 +35,6 @@ const SignIn = () => {
   const [submitStatus, setSubmitStatus] = useState<SubmitStatus | null>(null);
 
   const { login } = useAuth();
-  const navigate = useNavigate();
 
   const validate = useCallback((data: FormData) => {
     const newErrors: Errors = {};

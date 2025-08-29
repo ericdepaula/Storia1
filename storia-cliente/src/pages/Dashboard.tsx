@@ -1,23 +1,12 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
-// Importamos o ícone 'Menu' para o botão hambúrguer
+// useNavigate não é mais necessário para o logout, mas pode ser usado em outros lugares.
 import { User, LogOut, Home, FileText, Settings, Menu, X } from "lucide-react";
 import TabInicio from "../components/tabs/TabInicio";
+import { useAuth } from "../context/AuthContext"; // 1. IMPORTE O useAuth
 
-// Função para obter dados do usuário do localStorage
-function getUserFromStorage() {
-  try {
-    const userStr = localStorage.getItem("userInfo");
-    if (userStr) {
-      return JSON.parse(userStr);
-    }
-  } catch {
-    // ignore
-  }
-  return { nome: "", email: "" }; // Corrigido para 'nome' para consistência
-}
+// A função getUserFromStorage não é mais a fonte da verdade.
+// Podemos pegar o usuário diretamente do nosso contexto.
 
-// Array de itens do menu
 const menuItems = [
   { key: "inicio", label: "Inicio", icon: <Home className="w-5 h-5 mr-2" /> },
   {
@@ -34,33 +23,20 @@ const menuItems = [
 
 const Dashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState("inicio");
-  const [user] = useState(() => getUserFromStorage());
-  const navigate = useNavigate();
 
-  // --- ESTADO PARA CONTROLAR O MENU RESPONSIVO ---
-  // Este é o "interruptor" que diz se o menu mobile está aberto ou fechado.
+  // 2. PEGUE O USUÁRIO E A FUNÇÃO DE LOGOUT DO CONTEXTO
+  const { user, logout } = useAuth();
+
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
+  // 3. SIMPLIFIQUE A FUNÇÃO handleLogout
   const handleLogout = () => {
-    localStorage.removeItem("userInfo");
-    localStorage.removeItem("authToken");
-    navigate("/signin");
+    logout(); // Apenas chame a função do contexto. É só isso!
+    // A navegação será tratada automaticamente pelo ProtectedRoute.
   };
 
   return (
     <div className="flex min-h-screen bg-gray-50 relative">
-      {" "}
-      {/* Adicionado 'relative' para contexto de posicionamento */}
-      {/* --- SOBREPOSIÇÃO (OVERLAY) PARA O MENU MOBILE --- */}
-      {/* Este div só aparece quando o menu está aberto, para escurecer o fundo */}
-      {isSidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/60 z-20 md:hidden"
-          onClick={() => setIsSidebarOpen(false)}
-          aria-hidden="true"
-        ></div>
-      )}
-      {/* --- SIDEBAR (MENU LATERAL) RESPONSIVO --- */}
       <aside
         className={`fixed inset-y-0 left-0 w-64 bg-white border-r border-gray-200 flex flex-col z-30
                    transform transition-transform duration-300 ease-in-out
@@ -69,7 +45,6 @@ const Dashboard: React.FC = () => {
       >
         <div className="flex items-center justify-between h-16 px-6 border-b border-gray-100">
           <span className="text-xl font-bold text-blue-700">Dashboard</span>
-          {/* Botão de fechar que só aparece no mobile */}
           <button
             className="md:hidden text-gray-500 hover:text-gray-800"
             onClick={() => setIsSidebarOpen(false)}
@@ -89,7 +64,7 @@ const Dashboard: React.FC = () => {
               }`}
               onClick={() => {
                 setActiveTab(item.key);
-                setIsSidebarOpen(false); // Fecha o menu ao selecionar um item no mobile
+                setIsSidebarOpen(false);
               }}
             >
               {item.icon}
@@ -108,12 +83,9 @@ const Dashboard: React.FC = () => {
           </button>
         </div>
       </aside>
-      {/* --- CONTEÚDO PRINCIPAL --- */}
-      {/* A margem 'md:ml-64' só é aplicada no desktop para dar espaço ao sidebar visível */}
+
       <main className="flex-1 flex flex-col transition-all duration-300 ease-in-out">
-        {/* Topbar */}
         <header className="flex items-center justify-between h-16 px-4 sm:px-8 bg-white border-b border-gray-200">
-          {/* Botão "hambúrguer" que só aparece no mobile */}
           <button
             className="text-gray-600 md:hidden"
             onClick={() => setIsSidebarOpen(true)}
@@ -121,25 +93,23 @@ const Dashboard: React.FC = () => {
             <Menu className="w-6 h-6" />
           </button>
 
-          {/* Div para garantir que o perfil do usuário fique sempre à direita */}
           <div className="flex-1 flex justify-end">
             <div className="flex items-center space-x-3">
               <User className="w-7 h-7 text-blue-600" />
               <div>
-                <div className="font-semibold text-gray-900">{user.nome}</div>
-                <div className="text-xs text-gray-500">{user.email}</div>
+                {/* Usamos o usuário do contexto, que é sempre atualizado */}
+                <div className="font-semibold text-gray-900">{user?.nome}</div>
+                <div className="text-xs text-gray-500">{user?.email}</div>
               </div>
             </div>
           </div>
         </header>
 
-        {/* Conteúdo das Abas */}
         <section className="flex-1 p-4 sm:p-8 overflow-y-auto">
           {activeTab === "inicio" && <TabInicio />}
           {activeTab === "conteudo" && (
             <div>
               <h2 className="text-2xl font-bold mb-4">Gerar Conteúdo</h2>
-              {/* Aqui entrarão os componentes FreeContentGenerator ou PaidContentForm no futuro */}
               <p>Em construção...</p>
             </div>
           )}
@@ -154,5 +124,5 @@ const Dashboard: React.FC = () => {
     </div>
   );
 };
-    
+
 export default Dashboard;
