@@ -5,9 +5,9 @@ import './index.css';
 import { AuthProvider } from './context/AuthContext'; // <-- IMPORTE AQUI
 
 createRoot(document.getElementById('root')!).render(
-  <StrictMode>
+  
     <AuthProvider> {/* <-- ABRAÇE O APP */}
       <App />
     </AuthProvider>
-  </StrictMode>
+  
 );
