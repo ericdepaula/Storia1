@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Eye, EyeOff, Mail, Lock, Loader2, AlertCircle } from "lucide-react";
 import TimedSnackbar from "../components/TimedSnackbar";
 import { supabase } from "../config/supabaseClient";
+import { useAuth } from "../context/AuthContext"; // Importação correta
 
 // --- Tipos para os dados do formulário e estados ---
 interface FormData {
@@ -26,14 +27,14 @@ const validateEmail = (email: string): boolean => {
 // Componente SignIn
 const SignIn = () => {
   const [formData, setFormData] = useState<FormData>({ email: "" });
-  // --- MELHORIA 1: Usar useRef para a senha ---
-  // A ref nos dará acesso direto ao input sem precisar de um estado.
   const passwordRef = useRef<HTMLInputElement>(null);
 
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<Errors>({});
   const [isLoading, setIsLoading] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<SubmitStatus | null>(null);
+
+  const { login } = useAuth(); // Pegamos a função 'login' do nosso contexto
   const navigate = useNavigate();
 
   // A validação agora foca no que está no estado (apenas o email)
@@ -45,9 +46,8 @@ const SignIn = () => {
     return newErrors;
   }, []);
 
+  // ---> INÍCIO DA MUDANÇA PRINCIPAL (LOGIN COM GOOGLE) <---
   useEffect(() => {
-    const validationErrors = validate(formData);
-    setErrors(validationErrors);
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
@@ -65,39 +65,62 @@ const SignIn = () => {
             body: JSON.stringify({ session }),
           }
         )
-          .then((res) => res.json())
-          .then((data) => {
-            if (data.token) {
-              localStorage.setItem("authToken", data.token);
-              localStorage.setItem("userInfo", JSON.stringify(data.usuario));
-              navigate("/dashboard");
+          .then((res) => {
+            if (!res.ok) {
+              return res.json().then((err) => {
+                throw new Error(
+                  err.message || "Falha na comunicação com a API"
+                );
+              });
             }
+            return res.json();
+          })
+          .then((data) => {
+            if (data.token && data.usuario) {
+              // 1. CHAME A FUNÇÃO DO CONTEXTO
+              login(data.token, data.usuario);
+
+              // 2. NAVEGUE PARA O DASHBOARD
+              navigate("/dashboard");
+            } else {
+              console.error(
+                "API não retornou um token ou usuário válido.",
+                data
+              );
+              setSubmitStatus({
+                type: "error",
+                message: "Falha ao obter dados de autenticação.",
+              });
+            }
+          })
+          .catch((error) => {
+            console.error("Erro durante o callback do Google:", error);
+            setSubmitStatus({ type: "error", message: error.message });
           })
           .finally(() => setIsLoading(false));
       }
     });
     return () => subscription.unsubscribe();
-  }, [formData, validate]);
+    // Adicione 'login' e 'navigate' às dependências do useEffect
+  }, [login, navigate]);
+  // ---> FIM DA MUDANÇA PRINCIPAL (LOGIN COM GOOGLE) <---
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    // O input de senha não vai mais chamar esta função
     setFormData((prev) => ({ ...prev, [name]: value }));
     if (submitStatus) setSubmitStatus(null);
   };
 
+  // ---> INÍCIO DA MUDANÇA (LOGIN COM EMAIL/SENHA) <---
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    // --- MELHORIA 2: Capturar a senha diretamente da ref ---
     const passwordToSend = passwordRef.current?.value || "";
-
     const finalErrors = validate(formData);
     if (!formData.email) finalErrors.email = "Email é obrigatório";
     if (!passwordToSend) finalErrors.password = "Senha é obrigatória";
 
     setErrors(finalErrors);
-
     if (Object.keys(finalErrors).length > 0) {
       setSubmitStatus({
         type: "error",
@@ -105,10 +128,8 @@ const SignIn = () => {
       });
       return;
     }
-
     setIsLoading(true);
     setSubmitStatus(null);
-
     try {
       const apiUrl = `${import.meta.env.VITE_API_BASE_URL}/api/usuarios/login`;
       const response = await fetch(apiUrl, {
@@ -121,41 +142,31 @@ const SignIn = () => {
       if (!response.ok) {
         throw new Error(data.message || "Credenciais inválidas.");
       }
-      localStorage.setItem("authToken", data.token);
 
-      if (data.usuario) {
-        localStorage.setItem("userInfo", JSON.stringify(data.usuario));
+      if (data.token && data.usuario) {
+        // 1. CHAME A FUNÇÃO DO CONTEXTO
+        login(data.token, data.usuario);
+
+        // 2. NAVEGUE PARA O DASHBOARD
+        navigate("/dashboard");
+      } else {
+        throw new Error("Resposta de login inválida da API.");
       }
-      setSubmitStatus({
-        type: "success",
-        message: "Login realizado com sucesso! Redirecionando...",
-      });
-
-      // Limpa o campo de senha manualmente após o sucesso
-      if (passwordRef.current) {
-        passwordRef.current.value = "";
-      }
-
-      navigate("/dashboard");
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : "Ocorreu um erro inesperado.";
       setSubmitStatus({ type: "error", message: errorMessage });
-      // Limpa o campo de senha manualmente em caso de erro
-      if (passwordRef.current) {
-        passwordRef.current.value = "";
-      }
     } finally {
       setIsLoading(false);
     }
   };
+  // ---> FIM DA MUDANÇA (LOGIN COM EMAIL/SENHA) <---
 
   const handleGoogleSignIn = async () => {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
       });
-
       if (error) {
         throw new Error(error.message);
       }
@@ -168,14 +179,16 @@ const SignIn = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center p-4">
+      {/* O resto do seu JSX (a parte visual) continua exatamente o mesmo */}
+      {/* ... */}
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Bem vindo!</h1>
           <p className="text-gray-600">Entre com sua conta para continuar</p>
         </div>
-
         <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
           <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Email input */}
             <div>
               <label
                 htmlFor="email"
@@ -205,12 +218,11 @@ const SignIn = () => {
                   id="email-error"
                   className="mt-2 text-sm text-red-600 flex items-center"
                 >
-                  {" "}
-                  <AlertCircle className="h-4 w-4 mr-1" /> {errors.email}{" "}
+                  <AlertCircle className="h-4 w-4 mr-1" /> {errors.email}
                 </p>
               )}
             </div>
-
+            {/* Password input */}
             <div>
               <label
                 htmlFor="password"
@@ -220,7 +232,6 @@ const SignIn = () => {
               </label>
               <div className="relative">
                 <Lock className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
-                {/* --- MELHORIA 3: Remover 'value' e 'onChange', adicionar 'ref' --- */}
                 <input
                   type={showPassword ? "text" : "password"}
                   id="password"
@@ -252,12 +263,10 @@ const SignIn = () => {
                   id="password-error"
                   className="mt-2 text-sm text-red-600 flex items-center"
                 >
-                  {" "}
-                  <AlertCircle className="h-4 w-4 mr-1" /> {errors.password}{" "}
+                  <AlertCircle className="h-4 w-4 mr-1" /> {errors.password}
                 </p>
               )}
             </div>
-
             <div className="text-right">
               <Link
                 to="/forgot-password"
@@ -266,7 +275,6 @@ const SignIn = () => {
                 Esqueci minha senha
               </Link>
             </div>
-
             <button
               type="submit"
               disabled={isLoading}
@@ -281,8 +289,7 @@ const SignIn = () => {
               )}
             </button>
           </form>
-
-          {/* Botão de login com o Google */}
+          {/* Google Sign In */}
           <div className="mt-6">
             <button
               onClick={handleGoogleSignIn}
@@ -298,7 +305,6 @@ const SignIn = () => {
               </span>
             </button>
           </div>
-
           <div className="mt-6 text-center">
             <p className="text-gray-600">
               Não tem uma conta?{" "}
