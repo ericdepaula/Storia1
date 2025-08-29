@@ -1,0 +1,16 @@
+services:
+  api:
+    build:
+      context: ./storia-api
+      target: development # Adicione um target no Dockerfile se precisar de stages diferentes
+    volumes:
+      # Mapeia o código local para dentro do container, exceto node_modules
+      - ./storia-api:/src/app
+      - /src/app/node_modules
+    command: npm run dev # Ou o comando para iniciar em modo de desenvolvimento
+
+  web:
+    volumes:
+      # Mapeia o código local para o builder conseguir reconstruir ao vivo
+      - ./storia-cliente:/app
+      - /app/node_modules

@@ -1,6 +1,7 @@
 services:
   api:
-    build: ./storia-api .
+    build:
+      context: ./storia-api .
     container_name: storia-api
     restart: unless-stopped
     env_file:
@@ -9,19 +10,27 @@ services:
       - "3000:3000"
     networks:
       - storia-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"] # Exemplo, ajuste a URL se necessário
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
   web:
-    build: ./storia-cliente .
+    build:
+      context: ./storia-cliente .
     container_name: storia-cliente
     restart: always
     env_file:
       - ./storia-cliente/.env
     ports:
-      - "8080:80"
-    depends_on:
-      - api
+      - "8080:80" # Mapeia a porta 80 do container para a 8080 da sua máquina
     networks:
       - storia-net
+    depends_on:
+      api:
+        condition: service_healthy # Agora o 'web' espera a 'api' estar saudável
 
 networks:
   storia-net:
