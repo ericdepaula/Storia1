@@ -25,7 +25,7 @@ const criarSessaoDeCheckout = async (priceId, promptData, usuarioId) => {
     }
     // --- FIM DA BUSCA ---
 
-    const frontendUrl = process.env.VITE_FRONTEND_URL || "http://localhost:5173";
+    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
 
     const session = await stripe.checkout.sessions.create({
       // 3. ADICIONE O EMAIL DO CLIENTE AQUI
