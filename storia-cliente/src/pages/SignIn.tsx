@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Eye, EyeOff, Mail, Lock, Loader2, AlertCircle } from "lucide-react";
 import TimedSnackbar from "../components/TimedSnackbar";
 import { supabase } from "../config/supabaseClient";
-import { useAuth } from "../context/AuthContext"; // Importação correta
+import { useAuth } from "../context/AuthContext";
 
 // --- Tipos para os dados do formulário e estados ---
 interface FormData {
@@ -34,10 +34,9 @@ const SignIn = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<SubmitStatus | null>(null);
 
-  const { login } = useAuth(); // Pegamos a função 'login' do nosso contexto
+  const { login } = useAuth();
   const navigate = useNavigate();
 
-  // A validação agora foca no que está no estado (apenas o email)
   const validate = useCallback((data: FormData) => {
     const newErrors: Errors = {};
     if (data.email && !validateEmail(data.email)) {
@@ -46,64 +45,7 @@ const SignIn = () => {
     return newErrors;
   }, []);
 
-  // ---> INÍCIO DA MUDANÇA PRINCIPAL (LOGIN COM GOOGLE) <---
-  useEffect(() => {
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_IN" && session) {
-        setIsLoading(true);
-        fetch(
-          `${
-            import.meta.env.VITE_API_BASE_URL
-          }/api/usuarios/auth/google/callback`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ session }),
-          }
-        )
-          .then((res) => {
-            if (!res.ok) {
-              return res.json().then((err) => {
-                throw new Error(
-                  err.message || "Falha na comunicação com a API"
-                );
-              });
-            }
-            return res.json();
-          })
-          .then((data) => {
-            if (data.token && data.usuario) {
-              // 1. CHAME A FUNÇÃO DO CONTEXTO
-              login(data.token, data.usuario);
-
-              // 2. NAVEGUE PARA O DASHBOARD
-              navigate("/dashboard");
-            } else {
-              console.error(
-                "API não retornou um token ou usuário válido.",
-                data
-              );
-              setSubmitStatus({
-                type: "error",
-                message: "Falha ao obter dados de autenticação.",
-              });
-            }
-          })
-          .catch((error) => {
-            console.error("Erro durante o callback do Google:", error);
-            setSubmitStatus({ type: "error", message: error.message });
-          })
-          .finally(() => setIsLoading(false));
-      }
-    });
-    return () => subscription.unsubscribe();
-    // Adicione 'login' e 'navigate' às dependências do useEffect
-  }, [login, navigate]);
-  // ---> FIM DA MUDANÇA PRINCIPAL (LOGIN COM GOOGLE) <---
+  // O useEffect que estava aqui foi REMOVIDO.
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -111,7 +53,6 @@ const SignIn = () => {
     if (submitStatus) setSubmitStatus(null);
   };
 
-  // ---> INÍCIO DA MUDANÇA (LOGIN COM EMAIL/SENHA) <---
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
@@ -144,10 +85,7 @@ const SignIn = () => {
       }
 
       if (data.token && data.usuario) {
-        // 1. CHAME A FUNÇÃO DO CONTEXTO
         login(data.token, data.usuario);
-
-        // 2. NAVEGUE PARA O DASHBOARD
         navigate("/dashboard");
       } else {
         throw new Error("Resposta de login inválida da API.");
@@ -160,7 +98,6 @@ const SignIn = () => {
       setIsLoading(false);
     }
   };
-  // ---> FIM DA MUDANÇA (LOGIN COM EMAIL/SENHA) <---
 
   const handleGoogleSignIn = async () => {
     try {
@@ -179,16 +116,14 @@ const SignIn = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center p-4">
-      {/* O resto do seu JSX (a parte visual) continua exatamente o mesmo */}
-      {/* ... */}
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Bem vindo!</h1>
           <p className="text-gray-600">Entre com sua conta para continuar</p>
         </div>
+
         <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Email input */}
             <div>
               <label
                 htmlFor="email"
@@ -218,11 +153,12 @@ const SignIn = () => {
                   id="email-error"
                   className="mt-2 text-sm text-red-600 flex items-center"
                 >
-                  <AlertCircle className="h-4 w-4 mr-1" /> {errors.email}
+                  {" "}
+                  <AlertCircle className="h-4 w-4 mr-1" /> {errors.email}{" "}
                 </p>
               )}
             </div>
-            {/* Password input */}
+
             <div>
               <label
                 htmlFor="password"
@@ -263,10 +199,12 @@ const SignIn = () => {
                   id="password-error"
                   className="mt-2 text-sm text-red-600 flex items-center"
                 >
-                  <AlertCircle className="h-4 w-4 mr-1" /> {errors.password}
+                  {" "}
+                  <AlertCircle className="h-4 w-4 mr-1" /> {errors.password}{" "}
                 </p>
               )}
             </div>
+
             <div className="text-right">
               <Link
                 to="/forgot-password"
@@ -275,6 +213,7 @@ const SignIn = () => {
                 Esqueci minha senha
               </Link>
             </div>
+
             <button
               type="submit"
               disabled={isLoading}
@@ -289,7 +228,7 @@ const SignIn = () => {
               )}
             </button>
           </form>
-          {/* Google Sign In */}
+
           <div className="mt-6">
             <button
               onClick={handleGoogleSignIn}
@@ -305,6 +244,7 @@ const SignIn = () => {
               </span>
             </button>
           </div>
+
           <div className="mt-6 text-center">
             <p className="text-gray-600">
               Não tem uma conta?{" "}

@@ -5,6 +5,7 @@ import React, {
   useEffect,
   ReactNode,
 } from "react";
+import { supabase } from "../config/supabaseClient"; // <-- 1. IMPORTE O SUPABASE
 
 interface User {
   id: string;
@@ -27,17 +28,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    // Ao iniciar a app, tenta carregar o token do localStorage
-    const storedToken = localStorage.getItem("authToken");
-    const storedUser = localStorage.getItem("userInfo");
-    if (storedToken && storedUser) {
-      setToken(storedToken);
-      setUser(JSON.parse(storedUser));
-    }
-    setIsLoading(false); // Finaliza o carregamento inicial
-  }, []);
-
   const login = (newToken: string, newUser: User) => {
     localStorage.setItem("authToken", newToken);
     localStorage.setItem("userInfo", JSON.stringify(newUser));
@@ -51,6 +41,56 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setToken(null);
     setUser(null);
   };
+
+  // ---> INÍCIO DA LÓGICA CENTRALIZADA <---
+  useEffect(() => {
+    // Primeiro, verifica se já existe um token no localStorage ao carregar a página
+    const storedToken = localStorage.getItem("authToken");
+    const storedUser = localStorage.getItem("userInfo");
+    if (storedToken && storedUser) {
+      setToken(storedToken);
+      setUser(JSON.parse(storedUser));
+    }
+    setIsLoading(false);
+
+    // Agora, escuta por mudanças no estado de autenticação do Supabase
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      // Se o evento for um login bem-sucedido (como o retorno do Google)
+      if (event === "SIGNED_IN" && session) {
+        // Buscamos nosso próprio token da nossa API
+        fetch(
+          `${
+            import.meta.env.VITE_API_BASE_URL
+          }/api/usuarios/auth/google/callback`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ session }),
+          }
+        )
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.token && data.usuario) {
+              // Usamos nossa função login para atualizar o estado global
+              login(data.token, data.usuario);
+            }
+          })
+          .catch(console.error);
+      }
+      // Se o evento for um logout, limpamos a sessão
+      else if (event === "SIGNED_OUT") {
+        logout();
+      }
+    });
+
+    // Função de limpeza para remover o "ouvinte"
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []); // O array vazio garante que isso rode apenas uma vez
+  // ---> FIM DA LÓGICA CENTRALIZADA <---
 
   return (
     <AuthContext.Provider value={{ token, user, login, logout, isLoading }}>
