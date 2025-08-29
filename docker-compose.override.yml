@@ -2,15 +2,23 @@ services:
   api:
     build:
       context: ./storia-api
-      target: development # Adicione um target no Dockerfile se precisar de stages diferentes
+      target: development
     volumes:
-      # Mapeia o código local para dentro do container, exceto node_modules
       - ./storia-api:/src/app
       - /src/app/node_modules
-    command: npm run dev # Ou o comando para iniciar em modo de desenvolvimento
+    command: npm run dev
+    # Não precisamos do healthcheck em dev, pois o nodemon cuida disso
+    healthcheck:
+      disable: true
 
   web:
+    build:
+      context: ./storia-cliente
+      target: development # <--- ESSA LINHA É A MUDANÇA PRINCIPAL
+    ports:
+      - "5173:5173"
     volumes:
-      # Mapeia o código local para o builder conseguir reconstruir ao vivo
       - ./storia-cliente:/app
       - /app/node_modules
+    # O comando continua o mesmo
+    command: npm run dev

@@ -1,17 +1,20 @@
 services:
   api:
     build:
-      context: ./storia-api .
+      context: ./storia-api
+      dockerfile: Dockerfile
+      # Em produção, o Dockerfile usará o estágio 'production' por padrão
     container_name: storia-api
     restart: unless-stopped
+    # As variáveis de ambiente virão do arquivo .env na raiz
     env_file:
-      - ./storia-api/.env
+      - .env
     ports:
       - "3000:3000"
     networks:
       - storia-net
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"] # Exemplo, ajuste a URL se necessário
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -19,18 +22,22 @@ services:
 
   web:
     build:
-      context: ./storia-cliente .
+      context: ./storia-cliente
+      dockerfile: Dockerfile
+      # Passa as variáveis do .env da raiz para o processo de build do cliente
+      args:
+        - VITE_SUPABASE_URL=${VITE_SUPABASE_URL}
+        - VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY}
+        - VITE_API_BASE_URL=${VITE_API_BASE_URL}
     container_name: storia-cliente
     restart: always
-    env_file:
-      - ./storia-cliente/.env
     ports:
-      - "8080:80" # Mapeia a porta 80 do container para a 8080 da sua máquina
+      - "8080:80"
     networks:
       - storia-net
     depends_on:
       api:
-        condition: service_healthy # Agora o 'web' espera a 'api' estar saudável
+        condition: service_healthy
 
 networks:
   storia-net:
