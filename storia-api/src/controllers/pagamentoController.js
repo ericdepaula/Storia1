@@ -25,6 +25,27 @@ export const criarSessaoCheckout = async (req, res) => {
   }
 };
 
+export const criarCobrancaPix = async (req, res) => {
+
+  const { priceId, promptData, usuarioId, taxId } = req.body;
+
+  if (!priceId || !promptData || !usuarioId || taxId) {
+    return res
+      .status(400)
+      .json({ message: "priceId, promptData e usuarioId são obrigatórios." });
+  }
+  try {
+    const resultado = await pagamentoService.criarCobrancaPix(
+      priceId, promptData, usuarioId, taxId,
+    );
+    res.status(200).json(resultado)
+  } catch (erro) {
+    res
+      .status(erro.status || 500)
+      .json({ message: erro.message || "Ocorreu um problema inesperado." });
+  }
+};
+
 // Função para listar todos os produtos disponíveis
 // Esta função pode ser usada para exibir os produtos disponíveis para compra no front-end.
 export const listarProdutos = async (req, res) => {

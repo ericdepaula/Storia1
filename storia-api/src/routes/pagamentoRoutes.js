@@ -1,22 +1,21 @@
 import { Router } from 'express';
-import { criarSessaoCheckout, listarProdutos } from '../controllers/pagamentoController.js';
+import { criarSessaoCheckout, criarCobrancaPix, listarProdutos } from '../controllers/pagamentoController.js';
+import { authMiddleware } from '../middleware/authMiddleware.js'
 
 const router = Router();
 
-// Rota para o front-end solicitar a criação de um pagamento
-// Endereço final: POST /pagamentos/checkout
-router.post('/checkout', criarSessaoCheckout);
+router.use(authMiddleware);
 
-// Rota para listar todos os produtos disponíveis
-// Endereço final: GET api/pagamentos/produtos
-// Esta rota pode ser usada para exibir os produtos disponíveis para compra
+// Rota para checkout com STRIPE (Cartão)
+// Endereço final: POST /api/pagamentos/checkout-stripe
+router.post('/checkout-stripe', criarSessaoCheckout);
+
+// Rota para checkout com ABACATEPAY (PIX)
+// Endereço final: POST /api/pagamentos/checkout-pix
+router.post('/checkout-pix', criarCobrancaPix)
+
+// Rota para listar todos os produtos/planos disponíveis
+// Endereço final: GET /api/pagamentos/produtos
 router.get('/produtos', listarProdutos);
-
-// Rota para a página de sucesso do pagamento
-// Endereço final: GET /pagamentos/sucesso-pagamento
-// Esta rota serve para exibir uma página de sucesso após o pagamento
-router.get('/sucesso-pagamento', (req, res) => {
-  res.sendFile('sucesso-pagamento.html', { root: 'public' });
-});
 
 export default router;
