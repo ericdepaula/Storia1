@@ -1,6 +1,7 @@
 # --- ESTÁGIO 1: Base ---
 # Esta base será compartilhada entre dev e produção para aproveitar o cache
 FROM node:22-alpine AS base
+RUN apk add --no-cache curl
 WORKDIR /src/app
 COPY package.json package-lock.json* ./
 
