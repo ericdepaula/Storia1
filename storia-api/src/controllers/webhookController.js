@@ -1,18 +1,33 @@
 import { webhookService } from "../services/webhookService.js";
 
+// --- CONTROLLER PARA STRIPE ---
 export const handleStripeWebhook = async (req, res) => {
   try {
-    const sig = req.headers["stripe-signature"]; // A assinatura enviada pela Stripe
-    const rawBody = req.body; // O corpo bruto que a rota nos passou
+    const sig = req.headers["stripe-signature"];
+    const rawBody = req.body;
 
-    // Passa a assinatura e o corpo bruto para o serviço tratar
-    await webhookService.processarWebhook(rawBody, sig);
+    // Chama o serviço específico do Stripe
+    await webhookService.processarWebhookStripe(rawBody, sig);
 
-    // Se tudo deu certo, respondemos à Stripe com um status 200 OK.
     res.status(200).json({ received: true });
   } catch (erro) {
-    // Se algo der errado, informamos a Stripe.
-    console.error("Erro no controller do webhook:", erro.message);
+    console.error("Erro no controller do webhook Stripe:", erro.message);
+    res.status(erro.status || 400).json({ error: erro.message });
+  }
+};
+
+// --- CONTROLLER PARA ABACATEPAY ---
+export const handleAbacatePayWebhook = async (req, res) => {
+  try {
+    const sig = req.headers["abacate-signature"];
+    const rawBody = req.body;
+
+    // Chama o serviço específico da AbacatePay
+    await webhookService.processarWebhookAbacatePay(rawBody, sig);
+
+    res.status(200).json({ received: true });
+  } catch (erro) {
+    console.error("Erro no controller do webhook AbacatePay:", erro.message);
     res.status(erro.status || 400).json({ error: erro.message });
   }
 };
