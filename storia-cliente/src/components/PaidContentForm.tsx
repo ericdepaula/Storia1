@@ -1,15 +1,23 @@
 import React, { useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, CreditCard, QrCode } from "lucide-react";
 import TimedSnackbar from "./TimedSnackbar";
 import ContentForm from "./ContentForm";
-import Modal from "./Modal"; // Usaremos nosso componente de Modal existente
-import EmbeddedCheckout from "./EmbeddedCheckout"; // Importamos o novo componente de checkout
+import Modal from "./Modal";
+import EmbeddedCheckout from "./EmbeddedCheckout";
+import PixPaymentModal from "./PixPaymentModal";
 
 interface PaidContentFormProps {
   onGenerationSuccess: () => void;
 }
 
-const PaidContentForm: React.FC<PaidContentFormProps> = ({ onGenerationSuccess }) => {
+interface PixData {
+  qrCodeUrl: string;
+  copiaECola: string;
+}
+
+const PaidContentForm: React.FC<PaidContentFormProps> = ({
+  onGenerationSuccess,
+}) => {
   const [formData, setFormData] = useState({
     setor: "",
     tipoNegocio: "",
@@ -20,56 +28,89 @@ const PaidContentForm: React.FC<PaidContentFormProps> = ({ onGenerationSuccess }
   type SubmitStatus = { type: "error" | "success"; message: string } | null;
   const [submitStatus, setSubmitStatus] = useState<SubmitStatus>(null);
 
-  // Estados para controlar o modal e o clientSecret
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isStripeModalOpen, setIsStripeModalOpen] = useState(false);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
+
+  const [isPixModalOpen, setIsPixModalOpen] = useState(false);
+  const [pixData, setPixData] = useState<PixData | null>(null);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const handleInitiatePayment = async (method: "stripe" | "pix") => {
     setIsLoading(true);
     setSubmitStatus(null);
-    setClientSecret(null);
 
-    if (!priceId) {
+    if (
+      !priceId ||
+      !formData.setor ||
+      !formData.tipoNegocio ||
+      !formData.objetivoPrincipal
+    ) {
       setSubmitStatus({
         type: "error",
-        message: "Por favor, selecione um plano.",
+        message: "Por favor, preencha todos os campos antes de pagar.",
       });
       setIsLoading(false);
       return;
     }
 
+    // --- ESTA É A MUDANÇA ---
+    let userTaxId = null;
+    if (method === "pix") {
+      userTaxId = prompt(
+        "Para pagamentos com Pix, por favor, informe seu CPF (apenas números):"
+      );
+      if (!userTaxId || !/^\d{11}$/.test(userTaxId)) {
+        // Validação simples de 11 dígitos
+        setSubmitStatus({
+          type: "error",
+          message: "CPF inválido. O pagamento foi cancelado.",
+        });
+        setIsLoading(false);
+        return;
+      }
+    }
+    // -------------------------
+
     try {
       const userInfo = JSON.parse(localStorage.getItem("userInfo") || "{}");
       const token = localStorage.getItem("authToken");
 
-      const response = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL}/api/pagamentos/checkout`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            priceId,
-            usuarioId: userInfo.id,
-            promptData: formData,
-          }),
-        }
-      );
+      const endpoint =
+        method === "stripe"
+          ? `${
+              import.meta.env.VITE_API_BASE_URL
+            }/api/pagamentos/checkout-stripe`
+          : `${import.meta.env.VITE_API_BASE_URL}/api/pagamentos/checkout-pix`;
+
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          priceId,
+          usuarioId: userInfo.id,
+          promptData: formData,
+          taxId: userTaxId, // Enviamos o CPF para o backend
+        }),
+      });
 
       const data = await response.json();
       if (!response.ok)
         throw new Error(data.message || "Falha ao iniciar o pagamento.");
 
-      setClientSecret(data.clientSecret); // Salvamos o clientSecret
-      setIsModalOpen(true); // Abrimos o modal
+      if (method === "stripe") {
+        setClientSecret(data.clientSecret);
+        setIsStripeModalOpen(true);
+      } else {
+        setPixData({ qrCodeUrl: data.qrCode, copiaECola: data.copiaECola });
+        setIsPixModalOpen(true);
+      }
     } catch (err: unknown) {
       let errorMessage = "Ocorreu um erro.";
       if (err instanceof Error) errorMessage = err.message;
@@ -80,25 +121,31 @@ const PaidContentForm: React.FC<PaidContentFormProps> = ({ onGenerationSuccess }
   };
 
   const handlePaymentSuccess = () => {
-    setIsModalOpen(false); // Fecha o modal de pagamento
-    onGenerationSuccess();  // Chama a função do componente pai para atualizar a lista
+    setIsStripeModalOpen(false);
+    setIsPixModalOpen(false);
+    onGenerationSuccess();
+    setSubmitStatus({
+      type: "success",
+      message: "Pagamento confirmado! Seu conteúdo já está sendo preparado.",
+    });
   };
 
   return (
     <>
       <div className="bg-white p-8 rounded-xl shadow-md max-w-2xl mx-auto">
+        {/* ... (código do formulário e botões de plano inalterado) ... */}
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-800 mb-2">
             Gerar Mais Conteúdo
           </h2>
           <p className="text-gray-600 mb-6">
-            Selecione um plano para criar estratégias de conteúdo incríveis.
+            Preencha os detalhes, selecione um plano e escolha como pagar.
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={(e) => e.preventDefault()} className="space-y-6">
           <ContentForm formData={formData} onFormChange={handleInputChange} />
-          {/* ... Lógica dos botões de plano ... */}
+
           <div className="border-t pt-6">
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Selecione a quantidade de dias:
@@ -154,19 +201,40 @@ const PaidContentForm: React.FC<PaidContentFormProps> = ({ onGenerationSuccess }
               </label>
             </div>
           </div>
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full bg-green-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-green-700 disabled:opacity-50 transition flex items-center justify-center"
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="animate-spin h-5 w-5 mr-2" /> Carregando...
-              </>
-            ) : (
-              "Comprar e Gerar Conteúdo"
-            )}
-          </button>
+
+          <div className="border-t pt-6 space-y-4">
+            <h3 className="text-center text-sm font-medium text-gray-700">
+              Escolha o método de pagamento:
+            </h3>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <button
+                type="button"
+                onClick={() => handleInitiatePayment("stripe")}
+                disabled={isLoading}
+                className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 transition flex items-center justify-center"
+              >
+                {isLoading ? (
+                  <Loader2 className="animate-spin h-5 w-5 mr-2" />
+                ) : (
+                  <CreditCard className="h-5 w-5 mr-2" />
+                )}
+                Pagar com Cartão
+              </button>
+              <button
+                type="button"
+                onClick={() => handleInitiatePayment("pix")}
+                disabled={isLoading}
+                className="w-full bg-green-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-green-700 disabled:opacity-50 transition flex items-center justify-center"
+              >
+                {isLoading ? (
+                  <Loader2 className="animate-spin h-5 w-5 mr-2" />
+                ) : (
+                  <QrCode className="h-5 w-5 mr-2" />
+                )}
+                Pagar com PIX
+              </button>
+            </div>
+          </div>
         </form>
       </div>
 
@@ -175,10 +243,11 @@ const PaidContentForm: React.FC<PaidContentFormProps> = ({ onGenerationSuccess }
         onClose={() => setSubmitStatus(null)}
       />
 
-      {/* Modal que abre com o formulário de pagamento */}
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
+      <Modal
+        isOpen={isStripeModalOpen}
+        onClose={() => setIsStripeModalOpen(false)}
+      >
         <div className="h-[600px] w-full">
-          {/* 3. Passe a nova função para o EmbeddedCheckout */}
           {clientSecret && (
             <EmbeddedCheckout
               clientSecret={clientSecret}
@@ -187,6 +256,14 @@ const PaidContentForm: React.FC<PaidContentFormProps> = ({ onGenerationSuccess }
           )}
         </div>
       </Modal>
+
+      <PixPaymentModal
+        isOpen={isPixModalOpen}
+        onClose={() => setIsPixModalOpen(false)}
+        qrCodeUrl={pixData?.qrCodeUrl ?? null}
+        copiaECola={pixData?.copiaECola ?? null}
+        onPaymentConfirmed={handlePaymentSuccess}
+      />
     </>
   );
 };
