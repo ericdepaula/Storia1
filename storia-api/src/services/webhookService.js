@@ -53,6 +53,7 @@ const processarWebhookStripe = async (body, sig) => {
 const processarWebhookAbacatePay = async (body, sig) => {
   const event = JSON.parse(body.toString());
 
+  console.log(`[DEBUG AbacatePay] Webhook recebido! Tipo do evento: "${event.type}"`);
   // 2. Pulamos a validação 'constructEvent' e vamos direto para a lógica
   if (event.type === "billing.paid") {
     const billing = event.data;
