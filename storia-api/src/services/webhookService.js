@@ -51,28 +51,44 @@ const processarWebhookStripe = async (body, sig) => {
 };
 
 const processarWebhookAbacatePay = async (body, sig) => {
-  const event = JSON.parse(body.toString());
+  try {
+    const bodyString = body.toString('utf-8');
+    const eventPayload = JSON.parse(bodyString); // Renomeado para clareza
 
-  console.log(`[DEBUG AbacatePay] Webhook recebido! Tipo do evento: "${event.type}"`);
-  // 2. Pulamos a validação 'constructEvent' e vamos direto para a lógica
-  if (event.type === "billing.paid") {
-    const billing = event.data;
-    console.log(`🔔 (Webhook) Pagamento PIX confirmado para a cobrança ID: ${billing.id}`);
+    // --- PONTO CRÍTICO PARA DEBUG ---
+    // Vamos logar o objeto INTEIRO que recebemos da AbacatePay
+    console.log("--- [DEBUG ABACATEPAY] ---");
+    console.log("Webhook completo recebido:");
+    console.log(JSON.stringify(eventPayload, null, 2)); // O '2' formata o JSON para ficar legível
+    console.log("--------------------------");
+    // --------------------------------
 
-    const { data: compraExistente } = await supabase.from('compras').select('id').eq('abacate_billing_id', billing.id).single();
-    if (compraExistente) {
-      console.warn(`(Webhook) Cobrança ${billing.id} já foi processada. Ignorando.`);
-      return;
-    }
-    try {
-      const { usuarioId, priceId, ...promptData } = billing.metadata;
+    // Agora, vamos verificar a estrutura que SUSPEITAMOS que seja a correta.
+    // O tipo do evento parece estar dentro do objeto 'billing'
+    const eventType = eventPayload.billing?.status; // Usamos ?. para evitar erro se 'billing' não existir
+    const billingData = eventPayload.billing;
+
+    console.log(`[DEBUG AbacatePay] Tipo de evento extraído: "${eventType}"`);
+
+    // A lógica agora verifica se o status é 'PAID'
+    if (billingData && eventType === 'PAID') {
+      console.log(`🔔 (Webhook) Pagamento PIX confirmado para a cobrança ID: ${billingData.id}`);
+
+      const { data: compraExistente } = await supabase.from('compras').select('id').eq('abacate_billing_id', billingData.id).single();
+      if (compraExistente) {
+        console.warn(`(Webhook) Cobrança ${billingData.id} já foi processada. Ignorando.`);
+        return;
+      }
+
+      const { usuarioId, priceId, ...promptData } = billingData.metadata;
       if (!usuarioId || !priceId) throw new Error("Webhook da AbacatePay sem 'usuarioId' ou 'priceId' nos metadados.");
 
+      console.log(`(Webhook) Registrando a compra no banco de dados para o usuário ${usuarioId}...`);
       const { data: novaCompra, error: compraError } = await supabase.from("compras").insert({
         usuario_id: usuarioId,
-        abacate_billing_id: billing.id,
+        abacate_billing_id: billingData.id,
         preco_id: priceId,
-        valor_total: billing.amount / 100,
+        valor_total: billingData.amount / 100,
         status_pagamento: "paid",
         status_entrega: "PENDENTE",
       }).select().single();
@@ -84,10 +100,14 @@ const processarWebhookAbacatePay = async (body, sig) => {
       await conteudoService.gerarConteudoPago(novaCompra, promptData);
       console.log(`(Webhook) Serviço de geração de conteúdo finalizado para a compra ${novaCompra.id}.`);
 
-    } catch (err) {
-      console.error(`====== ❌ ERRO GERAL NO PROCESSAMENTO DO WEBHOOK ABACATEPAY ======`);
-      console.error(`Cobrança ID: ${billing.id}. Erro: ${err.message}`);
+    } else {
+      console.log(`(Webhook) Evento com status "${eventType}" recebido e ignorado conforme as regras.`);
     }
+
+  } catch (err) {
+    console.error(`====== ❌ ERRO NO PROCESSAMENTO GERAL DO WEBHOOK ABACATEPAY ======`);
+    console.error(`Erro: ${err.message}`);
+    console.error("Corpo bruto que causou o erro:", body.toString('utf-8'));
   }
 };
 
