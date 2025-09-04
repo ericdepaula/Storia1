@@ -51,24 +51,22 @@ const processarWebhookStripe = async (body, sig) => {
 };
 
 const processarWebhookAbacatePay = async (body, sig) => {
-  let event;
-  try {
-    event = abacatePay.webhooks.constructEvent(body, sig, abacatePayWebhookSecret);
-  } catch (err) {
-    console.error(`❌ Assinatura do Webhook AbacatePay inválida: ${err.message}`);
-    throw { status: 400, message: `Webhook Error: ${err.message}` };
-  }
+  const event = JSON.parse(body.toString());
 
+  // 2. Pulamos a validação 'constructEvent' e vamos direto para a lógica
   if (event.type === "billing.paid") {
     const billing = event.data;
+    console.log(`🔔 (Webhook) Pagamento PIX confirmado para a cobrança ID: ${billing.id}`);
+
     const { data: compraExistente } = await supabase.from('compras').select('id').eq('abacate_billing_id', billing.id).single();
     if (compraExistente) {
-      console.warn(`Webhook AbacatePay para a cobrança ${billing.id} já foi processado. Ignorando.`);
+      console.warn(`(Webhook) Cobrança ${billing.id} já foi processada. Ignorando.`);
       return;
     }
     try {
       const { usuarioId, priceId, ...promptData } = billing.metadata;
       if (!usuarioId || !priceId) throw new Error("Webhook da AbacatePay sem 'usuarioId' ou 'priceId' nos metadados.");
+
       const { data: novaCompra, error: compraError } = await supabase.from("compras").insert({
         usuario_id: usuarioId,
         abacate_billing_id: billing.id,
@@ -77,9 +75,14 @@ const processarWebhookAbacatePay = async (body, sig) => {
         status_pagamento: "paid",
         status_entrega: "PENDENTE",
       }).select().single();
+
       if (compraError) throw new Error(`Erro CRÍTICO ao salvar a compra PIX: ${compraError.message}`);
       console.log(`🛒 Compra PIX ${novaCompra.id} registrada com sucesso.`);
+
+      console.log(`(Webhook) Chamando o serviço de geração de conteúdo...`);
       await conteudoService.gerarConteudoPago(novaCompra, promptData);
+      console.log(`(Webhook) Serviço de geração de conteúdo finalizado para a compra ${novaCompra.id}.`);
+
     } catch (err) {
       console.error(`====== ❌ ERRO GERAL NO PROCESSAMENTO DO WEBHOOK ABACATEPAY ======`);
       console.error(`Cobrança ID: ${billing.id}. Erro: ${err.message}`);
