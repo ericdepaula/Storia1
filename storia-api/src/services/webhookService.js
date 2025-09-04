@@ -60,7 +60,7 @@ const processarWebhookAbacatePay = async (body, sig) => {
     console.log("--------------------------");
     
     const eventType = eventPayload.event;
-    const billingData = eventPayload;
+    const billingData = eventPayload.data;
     
     console.log(`[DEBUG AbacatePay] Tipo de evento extraído: "${eventType}"`);
     console.log("--------------------------");
