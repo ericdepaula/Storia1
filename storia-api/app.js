@@ -10,8 +10,7 @@ import cors from "cors";
 const app = express();
 app.use(cors());
 
-// A rota do webhook vem ANTES de express.json() para receber o corpo bruto.
-app.use("/stripe", webhookRoutes);
+app.use("/webhooks", webhookRoutes);
 
 // Middleware para processar JSON no corpo das outras requisições.
 app.use(express.json());
