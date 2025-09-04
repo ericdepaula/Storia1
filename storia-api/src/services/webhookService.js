@@ -52,16 +52,15 @@ const processarWebhookStripe = async (body, sig) => {
 
 const processarWebhookAbacatePay = async (body, sig) => {
   try {
-    const bodyString = body.toString('utf-8');
-    const eventPayload = JSON.parse(bodyString);
+    const eventPayload = JSON.parse(body.toString('utf-8'));
 
     console.log("--- [DEBUG ABACATEPAY] ---");
     console.log("Webhook completo recebido:");
     console.log(JSON.stringify(eventPayload, null, 2)); // O '2' formata o JSON para ficar legível
     console.log("--------------------------");
 
-    const eventType = eventPayload.data.event;
-    const billingData = eventPayload.data.billing;
+    const eventType = eventPayload.event;
+    const billingData = eventPayload.data;
 
     console.log(`[DEBUG AbacatePay] Tipo de evento extraído: "${eventType}"`);
 
