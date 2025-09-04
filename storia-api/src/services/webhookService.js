@@ -58,12 +58,14 @@ const processarWebhookAbacatePay = async (body, sig) => {
     console.log("Webhook completo recebido:");
     console.log(JSON.stringify(eventPayload, null, 2)); // O '2' formata o JSON para ficar legível
     console.log("--------------------------");
-
+    
     const eventType = eventPayload.event;
     const billingData = eventPayload;
-
+    
     console.log(`[DEBUG AbacatePay] Tipo de evento extraído: "${eventType}"`);
+    console.log("--------------------------");
     console.log(`[DEBUG AbacatePay] Status do pagamento: "${billingData.status}"`);
+    console.log("--------------------------");
 
     // A lógica agora verifica se o status é 'PAID'
     if (eventType === 'billing.paid' && billingData.status === 'PAID') {
