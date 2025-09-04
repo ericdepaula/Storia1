@@ -34,7 +34,7 @@ const criarSessaoDeCheckout = async (priceId, promptData, usuarioId) => {
 };
 
 
-const criarCobrancaPix = async (priceId, promptData, usuarioId) => {
+const criarCobrancaPix = async (priceId, promptData, usuarioId, taxId) => {
   const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
   if (!priceId || !usuarioId) {
     throw { status: 400, message: "priceId e usuarioId são obrigatórios." };
@@ -54,6 +54,7 @@ const criarCobrancaPix = async (priceId, promptData, usuarioId) => {
         name: usuario.nome,
         email: usuario.email,
         cellphone: (usuario.telefone || '00000000000').replace(/\D/g, ''),
+        taxId,
       },
       amount: plano.precoEmCentavos,
       description: `Pagamento para: ${plano.nome}`,
@@ -73,24 +74,27 @@ const criarCobrancaPix = async (priceId, promptData, usuarioId) => {
     };
 
     console.log(`🥑 Criando cobrança PIX no valor de ${plano.precoEmCentavos / 100} para ${usuario.email}...`);
-    const novaCobranca = await abacatePay.billing.create(billingData);
-
+    const respostaApi = await abacatePay.billing.create(billingData);
+    const novaCobranca = respostaApi.data;
     console.log("--- DEBUG: Resposta da API AbacatePay ---");
     console.log(JSON.stringify(novaCobranca, null, 2));
 
-    if (!novaCobranca || !novaCobranca.payment_url) {
+    if (!novaCobranca || !novaCobranca.url) {
+      console.log("Resposta inesperada da AbacatePay:", respostaApi);
       throw new Error('Falha ao obter os dados de pagamento da AbacatePay.');
     }
 
     return {
-      billingId: novaCobranca.id,
-      qrCode: novaCobranca.pix.qr_code_url,
-      copiaECola: novaCobranca.pix.qr_code_text
+      paymentUrl: novaCobranca.url
     };
 
   } catch (error) {
-    console.error("Erro ao criar cobrança PIX na AbacatePay:", error.response?.data || error.message);
-    throw { status: error.status || 500, message: `Erro no serviço da AbacatePay: ${error.message}` };
+    if (error.response) {
+      console.error("Erro detalhado da API AbacatePay:", JSON.stringify(error.response.data, null, 2));
+    } else {
+      console.error("Erro ao criar cobrança PIX na AbacatePay:", error.message);
+    }
+    throw { status: 500, message: `Erro no serviço da AbacatePay: ${error.message}` };
   }
 };
 

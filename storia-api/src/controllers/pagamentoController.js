@@ -29,10 +29,10 @@ export const criarCobrancaPix = async (req, res) => {
 
   const { priceId, promptData, usuarioId, taxId } = req.body;
 
-  if (!priceId || !promptData || !usuarioId || taxId) {
+  if (!priceId || !promptData || !usuarioId || !taxId) {
     return res
       .status(400)
-      .json({ message: "priceId, promptData e usuarioId são obrigatórios." });
+      .json({ message: "priceId, promptData, usuarioId e TaxId são obrigatórios." });
   }
   try {
     const resultado = await pagamentoService.criarCobrancaPix(
