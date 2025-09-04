@@ -4,20 +4,17 @@ import TimedSnackbar from "./TimedSnackbar";
 import ContentForm from "./ContentForm";
 import Modal from "./Modal";
 import EmbeddedCheckout from "./EmbeddedCheckout";
-import PixPaymentModal from "./PixPaymentModal";
+import CpfInputModal from "./CpfInputModal";
+import PixCheckoutModal from "./PixCheckoutModal";
 
 interface PaidContentFormProps {
   onGenerationSuccess: () => void;
 }
 
-interface PixData {
-  qrCodeUrl: string;
-  copiaECola: string;
-}
-
 const PaidContentForm: React.FC<PaidContentFormProps> = ({
   onGenerationSuccess,
 }) => {
+  // ... (estados do formulário permanecem os mesmos)
   const [formData, setFormData] = useState({
     setor: "",
     tipoNegocio: "",
@@ -27,22 +24,20 @@ const PaidContentForm: React.FC<PaidContentFormProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   type SubmitStatus = { type: "error" | "success"; message: string } | null;
   const [submitStatus, setSubmitStatus] = useState<SubmitStatus>(null);
-
   const [isStripeModalOpen, setIsStripeModalOpen] = useState(false);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [isCpfModalOpen, setIsCpfModalOpen] = useState(false);
 
-  const [isPixModalOpen, setIsPixModalOpen] = useState(false);
-  const [pixData, setPixData] = useState<PixData | null>(null);
+  // 2. Simplificamos o estado do Pix para guardar apenas a URL
+  const [pixPaymentUrl, setPixPaymentUrl] = useState<string | null>(null);
+  const [isPixCheckoutOpen, setIsPixCheckoutOpen] = useState(false);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleInitiatePayment = async (method: "stripe" | "pix") => {
-    setIsLoading(true);
-    setSubmitStatus(null);
-
+  const handlePaymentChoice = (method: "stripe" | "pix") => {
     if (
       !priceId ||
       !formData.setor ||
@@ -53,27 +48,22 @@ const PaidContentForm: React.FC<PaidContentFormProps> = ({
         type: "error",
         message: "Por favor, preencha todos os campos antes de pagar.",
       });
-      setIsLoading(false);
       return;
     }
-
-    // --- ESTA É A MUDANÇA ---
-    let userTaxId = null;
     if (method === "pix") {
-      userTaxId = prompt(
-        "Para pagamentos com Pix, por favor, informe seu CPF (apenas números):"
-      );
-      if (!userTaxId || !/^\d{11}$/.test(userTaxId)) {
-        // Validação simples de 11 dígitos
-        setSubmitStatus({
-          type: "error",
-          message: "CPF inválido. O pagamento foi cancelado.",
-        });
-        setIsLoading(false);
-        return;
-      }
+      setIsCpfModalOpen(true);
+    } else {
+      handleInitiatePayment("stripe", null);
     }
-    // -------------------------
+  };
+
+  const handleInitiatePayment = async (
+    method: "stripe" | "pix",
+    taxId: string | null
+  ) => {
+    setIsLoading(true);
+    setSubmitStatus(null);
+    setIsCpfModalOpen(false);
 
     try {
       const userInfo = JSON.parse(localStorage.getItem("userInfo") || "{}");
@@ -96,7 +86,7 @@ const PaidContentForm: React.FC<PaidContentFormProps> = ({
           priceId,
           usuarioId: userInfo.id,
           promptData: formData,
-          taxId: userTaxId, // Enviamos o CPF para o backend
+          taxId: taxId,
         }),
       });
 
@@ -108,12 +98,13 @@ const PaidContentForm: React.FC<PaidContentFormProps> = ({
         setClientSecret(data.clientSecret);
         setIsStripeModalOpen(true);
       } else {
-        setPixData({ qrCodeUrl: data.qrCode, copiaECola: data.copiaECola });
-        setIsPixModalOpen(true);
+        // 3. Salvamos a URL e abrimos o novo modal
+        setPixPaymentUrl(data.paymentUrl);
+        setIsPixCheckoutOpen(true);
       }
     } catch (err: unknown) {
-      let errorMessage = "Ocorreu um erro.";
-      if (err instanceof Error) errorMessage = err.message;
+      const errorMessage =
+        err instanceof Error ? err.message : "Ocorreu um erro.";
       setSubmitStatus({ type: "error", message: errorMessage });
     } finally {
       setIsLoading(false);
@@ -122,7 +113,7 @@ const PaidContentForm: React.FC<PaidContentFormProps> = ({
 
   const handlePaymentSuccess = () => {
     setIsStripeModalOpen(false);
-    setIsPixModalOpen(false);
+    setIsPixCheckoutOpen(false); // Fecha o modal de checkout do Pix
     onGenerationSuccess();
     setSubmitStatus({
       type: "success",
@@ -133,7 +124,6 @@ const PaidContentForm: React.FC<PaidContentFormProps> = ({
   return (
     <>
       <div className="bg-white p-8 rounded-xl shadow-md max-w-2xl mx-auto">
-        {/* ... (código do formulário e botões de plano inalterado) ... */}
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-800 mb-2">
             Gerar Mais Conteúdo
@@ -142,10 +132,8 @@ const PaidContentForm: React.FC<PaidContentFormProps> = ({
             Preencha os detalhes, selecione um plano e escolha como pagar.
           </p>
         </div>
-
         <form onSubmit={(e) => e.preventDefault()} className="space-y-6">
           <ContentForm formData={formData} onFormChange={handleInputChange} />
-
           <div className="border-t pt-6">
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Selecione a quantidade de dias:
@@ -201,7 +189,6 @@ const PaidContentForm: React.FC<PaidContentFormProps> = ({
               </label>
             </div>
           </div>
-
           <div className="border-t pt-6 space-y-4">
             <h3 className="text-center text-sm font-medium text-gray-700">
               Escolha o método de pagamento:
@@ -209,7 +196,7 @@ const PaidContentForm: React.FC<PaidContentFormProps> = ({
             <div className="flex flex-col sm:flex-row gap-4">
               <button
                 type="button"
-                onClick={() => handleInitiatePayment("stripe")}
+                onClick={() => handlePaymentChoice("stripe")}
                 disabled={isLoading}
                 className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 transition flex items-center justify-center"
               >
@@ -217,12 +204,12 @@ const PaidContentForm: React.FC<PaidContentFormProps> = ({
                   <Loader2 className="animate-spin h-5 w-5 mr-2" />
                 ) : (
                   <CreditCard className="h-5 w-5 mr-2" />
-                )}
+                )}{" "}
                 Pagar com Cartão
               </button>
               <button
                 type="button"
-                onClick={() => handleInitiatePayment("pix")}
+                onClick={() => handlePaymentChoice("pix")}
                 disabled={isLoading}
                 className="w-full bg-green-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-green-700 disabled:opacity-50 transition flex items-center justify-center"
               >
@@ -230,7 +217,7 @@ const PaidContentForm: React.FC<PaidContentFormProps> = ({
                   <Loader2 className="animate-spin h-5 w-5 mr-2" />
                 ) : (
                   <QrCode className="h-5 w-5 mr-2" />
-                )}
+                )}{" "}
                 Pagar com PIX
               </button>
             </div>
@@ -243,6 +230,7 @@ const PaidContentForm: React.FC<PaidContentFormProps> = ({
         onClose={() => setSubmitStatus(null)}
       />
 
+      {/* Modais */}
       <Modal
         isOpen={isStripeModalOpen}
         onClose={() => setIsStripeModalOpen(false)}
@@ -257,12 +245,19 @@ const PaidContentForm: React.FC<PaidContentFormProps> = ({
         </div>
       </Modal>
 
-      <PixPaymentModal
-        isOpen={isPixModalOpen}
-        onClose={() => setIsPixModalOpen(false)}
-        qrCodeUrl={pixData?.qrCodeUrl ?? null}
-        copiaECola={pixData?.copiaECola ?? null}
-        onPaymentConfirmed={handlePaymentSuccess}
+      <CpfInputModal
+        isOpen={isCpfModalOpen}
+        onClose={() => setIsCpfModalOpen(false)}
+        onSubmit={(cpf) => handleInitiatePayment("pix", cpf)}
+        isLoading={isLoading}
+      />
+
+      {/* 4. Renderiza o novo modal de checkout do PIX */}
+      <PixCheckoutModal
+        isOpen={isPixCheckoutOpen}
+        onClose={() => setIsPixCheckoutOpen(false)}
+        checkoutUrl={pixPaymentUrl}
+        onPaymentSuccess={handlePaymentSuccess}
       />
     </>
   );
