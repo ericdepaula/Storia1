@@ -24,18 +24,15 @@ jobs:
         username: ${{ secrets.VPS_USERNAME }} # Pega o usuário do cofre
         key: ${{ secrets.VPS_SSH_KEY }}     # Pega a chave secreta do cofre
         script: |
-          # Navega até a pasta do projeto na VPS
+          echo ">>> Navegando até a pasta"
           cd ${{ secrets.PROJECT_PATH }}
 
-          # Puxa as últimas atualizações do GitHub
           echo ">>> Puxando atualizações do Git..."
           git pull
 
-          # Constrói e reinicia os containers Docker
           echo ">>> Reconstruindo e reiniciando os containers Docker..."
-          docker-compose up --build -d
-
-          # Limpa imagens Docker antigas e não utilizadas para economizar espaço
+          /snap/bin/docker-compose up --build -d
+          
           echo ">>> Limpando imagens Docker antigas..."
           docker image prune -af
 
