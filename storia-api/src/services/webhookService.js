@@ -53,25 +53,20 @@ const processarWebhookStripe = async (body, sig) => {
 const processarWebhookAbacatePay = async (body, sig) => {
   try {
     const bodyString = body.toString('utf-8');
-    const eventPayload = JSON.parse(bodyString); // Renomeado para clareza
+    const eventPayload = JSON.parse(bodyString);
 
-    // --- PONTO CRÍTICO PARA DEBUG ---
-    // Vamos logar o objeto INTEIRO que recebemos da AbacatePay
     console.log("--- [DEBUG ABACATEPAY] ---");
     console.log("Webhook completo recebido:");
     console.log(JSON.stringify(eventPayload, null, 2)); // O '2' formata o JSON para ficar legível
     console.log("--------------------------");
-    // --------------------------------
 
-    // Agora, vamos verificar a estrutura que SUSPEITAMOS que seja a correta.
-    // O tipo do evento parece estar dentro do objeto 'billing'
-    const eventType = eventPayload.billing?.status; // Usamos ?. para evitar erro se 'billing' não existir
-    const billingData = eventPayload.billing;
+    const eventType = eventPayload.data.event;
+    const billingData = eventPayload.data.billing;
 
     console.log(`[DEBUG AbacatePay] Tipo de evento extraído: "${eventType}"`);
 
     // A lógica agora verifica se o status é 'PAID'
-    if (billingData && eventType === 'PAID') {
+    if (eventType === 'billing.paid' && billingData.status === 'PAID') {
       console.log(`🔔 (Webhook) Pagamento PIX confirmado para a cobrança ID: ${billingData.id}`);
 
       const { data: compraExistente } = await supabase.from('compras').select('id').eq('abacate_billing_id', billingData.id).single();
