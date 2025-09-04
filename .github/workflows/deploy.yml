@@ -29,7 +29,7 @@ jobs:
 
           # Puxa as últimas atualizações do GitHub
           echo ">>> Puxando atualizações do Git..."
-          git pull origin main
+          git pull
 
           # Constrói e reinicia os containers Docker
           echo ">>> Reconstruindo e reiniciando os containers Docker..."
