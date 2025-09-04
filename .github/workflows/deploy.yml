@@ -1,0 +1,42 @@
+name: Deploy para VPS Hostinger
+
+# Gatilho: A automação roda toda vez que houver um push na branch 'main'
+on:
+  push:
+    branches: [ "main" ]
+
+# Tarefas: O que o robô deve fazer
+jobs:
+  deploy:
+    # O robô usará um ambiente virtual Ubuntu para trabalhar
+    runs-on: ubuntu-latest
+
+    steps:
+    # Passo 1: O robô baixa uma cópia do seu código para o ambiente virtual
+    - name: Clonar o repositório
+      uses: actions/checkout@v3
+
+    # Passo 2: O robô se conecta à sua VPS e executa os comandos de deploy
+    - name: Conectar e fazer Deploy
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.VPS_IP }}        # Pega o IP do cofre de segredos
+        username: ${{ secrets.VPS_USERNAME }} # Pega o usuário do cofre
+        key: ${{ secrets.VPS_SSH_KEY }}     # Pega a chave secreta do cofre
+        script: |
+          # Navega até a pasta do projeto na VPS
+          cd ${{ secrets.PROJECT_PATH }}
+
+          # Puxa as últimas atualizações do GitHub
+          echo ">>> Puxando atualizações do Git..."
+          git pull origin main
+
+          # Constrói e reinicia os containers Docker
+          echo ">>> Reconstruindo e reiniciando os containers Docker..."
+          docker-compose up --build -d
+
+          # Limpa imagens Docker antigas e não utilizadas para economizar espaço
+          echo ">>> Limpando imagens Docker antigas..."
+          docker image prune -af
+
+          echo "✅ Deploy finalizado com sucesso!"
