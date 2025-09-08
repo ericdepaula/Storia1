@@ -64,7 +64,7 @@ const processarWebhookAbacatePay = async (body, sig) => {
     
     console.log(`[DEBUG AbacatePay] Tipo de evento extraído: "${eventType}"`);
     console.log("--------------------------");
-    console.log(`[DEBUG AbacatePay] Status do pagamento: "${billingData}"`);
+    console.log(`[DEBUG AbacatePay] Status do pagamento: "${billingData.status}"`);
     console.log("--------------------------");
 
     // A lógica agora verifica se o status é 'PAID'
