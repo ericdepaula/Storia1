@@ -60,8 +60,6 @@ const processarWebhookAbacatePay = async (body, sig) => {
       const billingId = billingData.id;
       console.log(`🔔 (Webhook) Pagamento PIX confirmado para a cobrança ID: ${billingId}`);
 
-      // --- CORREÇÃO SIMPLIFICADA ---
-      // 1. Encontre a compra em seu banco de dados usando o ID da AbacatePay.
       const { data: compra, error: findError } = await supabase
         .from('compras')
         .select('*')
@@ -72,13 +70,11 @@ const processarWebhookAbacatePay = async (body, sig) => {
         throw new Error(`Compra com payment_session_id ${billingId} não encontrada.`);
       }
 
-      // 2. Verifique se já não foi processada (boa prática)
       if (compra.status_pagamento === 'paid') {
         console.warn(`(Webhook) Cobrança ${billingId} já foi processada. Ignorando.`);
         return;
       }
 
-      // 3. Atualize o status da sua compra para 'paid'.
       console.log(`(Webhook) Atualizando status da compra ID: ${compra.id} para PAGO.`);
       const { error: updateError } = await supabase
         .from('compras')
@@ -89,10 +85,10 @@ const processarWebhookAbacatePay = async (body, sig) => {
         throw new Error(`Erro ao atualizar a compra ${compra.id}: ${updateError.message}`);
       }
 
-      // 4. Chame o serviço de geração de conteúdo com os dados que JÁ TEMOS.
       console.log(`(Webhook) Chamando o serviço de geração de conteúdo para a compra ${compra.id}...`);
-      // O `prompt_data` agora vem direto do registro da compra.
-      await conteudoService.gerarConteudoPago(compra, compra.prompt_data);
+      
+      await conteudoService.gerarConteudoPago(compra, compra.informacao_conteudo); 
+      
       console.log(`(Webhook) Serviço de geração de conteúdo finalizado para a compra ${compra.id}.`);
     } else {
       console.log(`(Webhook) Evento "${eventType}" com status "${billingData.status}" ignorado.`);

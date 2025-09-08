@@ -48,7 +48,6 @@ const criarCobrancaPix = async (priceId, promptData, usuarioId, taxId) => {
     if (!plano) throw { status: 404, message: "Plano não encontrado." };
 
     const billingData = {
-      amount: plano.precoEmCentavos,
       frequency: "ONE_TIME",
       methods: ["PIX"],
       products: [
