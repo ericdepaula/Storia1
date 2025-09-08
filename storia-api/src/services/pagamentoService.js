@@ -47,10 +47,6 @@ const criarCobrancaPix = async (priceId, promptData, usuarioId, taxId) => {
     const plano = planosDeProduto[priceId];
     if (!plano) throw { status: 404, message: "Plano não encontrado." };
 
-    // --- CORREÇÃO DEFINITIVA ---
-    // 1. Montamos o `billingData` apenas com os campos que a AbacatePay precisa.
-    //    Removemos `metadata`, `description`, `frequency` e `methods` que são campos
-    //    que podem causar problemas ou são padrão.
     const billingData = {
       customer: {
         name: usuario.nome,
@@ -59,13 +55,16 @@ const criarCobrancaPix = async (priceId, promptData, usuarioId, taxId) => {
         taxId,
       },
       amount: plano.precoEmCentavos,
+      description: `Pagamento para: ${plano.nome}`,
+      frequency: "ONE_TIME",
+      methods: ["PIX"],
       products: [
         {
           externalId: priceId,
           name: plano.nome,
           quantity: 1,
-          price: plano.precoEmCentavos,
-        },
+          price: plano.precoEmCentavos
+        }
       ],
       returnUrl: `${frontendUrl}/dashboard`,
       completionUrl: `${frontendUrl}/dashboard`,
@@ -75,13 +74,11 @@ const criarCobrancaPix = async (priceId, promptData, usuarioId, taxId) => {
     const respostaApi = await abacatePay.billing.create(billingData);
     const novaCobranca = respostaApi.data;
 
-    // A verificação `novaCobranca.id` é a mais importante.
     if (!novaCobranca || !novaCobranca.id) {
       console.error("Resposta inválida da AbacatePay:", respostaApi);
       throw new Error('Falha ao criar a cobrança na AbacatePay.');
     }
 
-    // 2. Pré-registramos a compra em nosso banco de dados.
     console.log(`📝 Registrando intenção de compra para a cobrança ${novaCobranca.id}...`);
     const { error: insertError } = await supabase.from("compras").insert({
       usuario_id: usuarioId,
