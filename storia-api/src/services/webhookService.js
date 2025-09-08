@@ -23,7 +23,7 @@ const processarWebhookStripe = async (body, sig) => {
 
   if (event.type === "checkout.session.completed") {
     const session = event.data.object;
-    const { data: compraExistente } = await supabase.from('compras').select('id').eq('stripe_session_id', session.id).single();
+    const { data: compraExistente } = await supabase.from('compras').select('id').eq('payment_session_id', session.id).single();
     if (compraExistente) {
       console.warn(`Webhook Stripe para a sessão ${session.id} já foi processado. Ignorando.`);
       return;
@@ -33,7 +33,7 @@ const processarWebhookStripe = async (body, sig) => {
       if (lineItems.data.length === 0) throw new Error("Sessão Stripe sem produtos.");
       const { data: novaCompra, error: compraError } = await supabase.from("compras").insert({
         usuario_id: session.client_reference_id,
-        stripe_session_id: session.id,
+        payment_session_id: session.id,
         produto_id: lineItems.data[0].price.product,
         preco_id: lineItems.data[0].price.id,
         valor_total: session.amount_total / 100,
@@ -80,7 +80,7 @@ const processarWebhookAbacatePay = async (body, sig) => {
       console.log(`(Webhook) Registrando a compra no banco de dados para o usuário ${billingData.customer.id}...`);
       const { data: novaCompra, error: compraError } = await supabase.from("compras").insert({
         usuario_id: billingData.customer.id,
-        abacate_billing_id: billingData.id,
+        payment_session_id: billingData.id,
         preco_id: billingData.products.externalId,
         valor_total: billingData.amount / 100,
         status_pagamento: "paid",
