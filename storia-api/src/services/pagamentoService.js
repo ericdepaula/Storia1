@@ -41,12 +41,12 @@ const criarCobrancaPix = async (priceId, promptData, usuarioId, taxId) => {
   }
 
   try {
-    const { data: usuario } = await supabase.from("usuarios").select("nome, email").eq("id", usuarioId).single();
+    const { data: usuario } = await supabase.from("usuarios").select("nome, email, telefone").eq("id", usuarioId).single();
     if (!usuario) throw { status: 500, message: "Usuário não encontrado." };
 
     const plano = planosDeProduto[priceId];
-    if (!plano || typeof plano.precoEmCentavos === 'undefined') {
-      throw { status: 404, message: "Plano ou preço não encontrado na configuração." };
+    if (!plano) {
+      throw { status: 404, message: "Plano não encontrado." };
     }
 
     const billingData = {
@@ -55,45 +55,45 @@ const criarCobrancaPix = async (priceId, promptData, usuarioId, taxId) => {
         email: usuario.email,
         cellphone: (usuario.telefone || '00000000000').replace(/\D/g, ''),
         taxId,
-        metadata: {...promptData, usuarioId}
       },
       amount: plano.precoEmCentavos,
-      description: `Pagamento para: ${plano.nome}`,
-      frequency: "ONE_TIME",
-      methods: ["PIX"],
-      products: [
-        {
-          externalId: priceId,
-          name: plano.nome,
-          quantity: 1,
-          price: plano.precoEmCentavos
-        }
-      ],
+      products: [{ externalId: priceId, name: plano.nome, quantity: 1, price: plano.precoEmCentavos }],
       returnUrl: `${frontendUrl}/dashboard`,
-      completionUrl: `${frontendUrl}/dashboard`,
     };
 
-    console.log(`🥑 Criando cobrança PIX no valor de ${plano.precoEmCentavos / 100} para ${usuario.email}...`);
+    console.log(`🥑 Criando cobrança PIX para ${usuario.email}...`);
     const respostaApi = await abacatePay.billing.create(billingData);
     const novaCobranca = respostaApi.data;
-    console.log("--- DEBUG: Resposta da API AbacatePay ---");
-    console.log(JSON.stringify(novaCobranca, null, 2));
 
-    if (!novaCobranca || !novaCobranca.url) {
-      console.log("Resposta inesperada da AbacatePay:", respostaApi);
-      throw new Error('Falha ao obter os dados de pagamento da AbacatePay.');
+    if (!novaCobranca || !novaCobranca.id) {
+      throw new Error('Falha ao criar a cobrança na AbacatePay.');
     }
 
+    // 2. Salve a INTENÇÃO de compra no seu banco de dados IMEDIATAMENTE.
+    // Adicione uma nova coluna 'prompt_data' (tipo JSONB) na sua tabela 'compras'.
+    console.log(`📝 Registrando intenção de compra para a cobrança ${novaCobranca.id}...`);
+    const { error: insertError } = await supabase.from("compras").insert({
+      usuario_id: usuarioId,
+      payment_session_id: novaCobranca.id, // Usamos o ID da AbacatePay para vincular
+      preco_id: priceId,
+      valor_total: plano.precoEmCentavos / 100,
+      status_pagamento: "PENDENTE", // Começa como pendente
+      status_entrega: "PENDENTE",
+      prompt_data: promptData, // Salva os dados do formulário aqui
+    });
+
+    if (insertError) {
+      console.error("Erro ao salvar a intenção de compra:", insertError);
+      throw new Error(`Não foi possível registrar a compra: ${insertError.message}`);
+    }
+
+    // 3. Retorne a URL de pagamento para o frontend
     return {
       paymentUrl: novaCobranca.url
     };
 
   } catch (error) {
-    if (error.response) {
-      console.error("Erro detalhado da API AbacatePay:", JSON.stringify(error.response.data, null, 2));
-    } else {
-      console.error("Erro ao criar cobrança PIX na AbacatePay:", error.message);
-    }
+    console.error("Erro em criarCobrancaPix:", error.message);
     throw { status: 500, message: `Erro no serviço da AbacatePay: ${error.message}` };
   }
 };
