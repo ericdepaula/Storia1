@@ -65,35 +65,22 @@ const processarWebhookAbacatePay = async (body, sig) => {
         return;
       }
 
-      // --- CORREÇÃO PRINCIPAL: BUSCAR OS DETALHES DA COBRANÇA ---
-      // O webhook não contém os metadados, então buscamos a cobrança direto na API.
-      console.log(`(Webhook) Buscando detalhes da cobrança ${billingData.id} na AbacatePay...`);
-      const respostaApi = await abacatePay.billing.get(billingData.id);
-      const fullBillingData = respostaApi.data;
-      const promptData = fullBillingData.metadata;
+      const promptData = billingData.customer.metadata;
+      const usuarioId = promptData.usuarioId;
 
-      if (!promptData || !promptData.usuarioId) {
-        throw new Error("Metadata (promptData) ou usuarioId não encontrado na cobrança da AbacatePay.");
+      if (!usuarioId) {
+        throw new Error("usuarioId não encontrado nos metadados do webhook da AbacatePay.");
       }
 
-      const usuarioId = promptData.usuarioId;
-      // --- FIM DA CORREÇÃO ---
-
-      console.log(`(Webhook) Registrando a compra no banco de dados para o usuário ${usuarioId}...`);
-
-      // --- CORREÇÃO SECUNDÁRIA: ACESSO AO PRECO_ID ---
-      // O 'products' é um array, então acessamos o primeiro item.
-      const precoId = billingData.products && billingData.products.length > 0
-        ? billingData.products[0].externalId
-        : promptData.priceId; // Fallback para o metadata se necessário
-
+      const precoId = billingData.products[0].externalId;
       if (!precoId) {
         throw new Error("preco_id não encontrado no webhook da AbacatePay.");
       }
-      // --- FIM DA CORREÇÃO ---
+
+      console.log(`(Webhook) Registrando a compra no banco de dados para o usuário ${usuarioId}...`);
 
       const { data: novaCompra, error: compraError } = await supabase.from("compras").insert({
-        usuario_id: usuarioId, // Agora usamos o ID correto
+        usuario_id: usuarioId,
         payment_session_id: billingData.id,
         preco_id: precoId,
         valor_total: billingData.amount / 100,

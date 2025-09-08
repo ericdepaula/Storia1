@@ -55,6 +55,7 @@ const criarCobrancaPix = async (priceId, promptData, usuarioId, taxId) => {
         email: usuario.email,
         cellphone: (usuario.telefone || '00000000000').replace(/\D/g, ''),
         taxId,
+        metadata: {...promptData, usuarioId}
       },
       amount: plano.precoEmCentavos,
       description: `Pagamento para: ${plano.nome}`,
@@ -70,7 +71,6 @@ const criarCobrancaPix = async (priceId, promptData, usuarioId, taxId) => {
       ],
       returnUrl: `${frontendUrl}/dashboard`,
       completionUrl: `${frontendUrl}/dashboard`,
-      metadata: { ...promptData, usuarioId, priceId },
     };
 
     console.log(`🥑 Criando cobrança PIX no valor de ${plano.precoEmCentavos / 100} para ${usuario.email}...`);
