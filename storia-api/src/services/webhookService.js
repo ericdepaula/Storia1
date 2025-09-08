@@ -53,35 +53,49 @@ const processarWebhookStripe = async (body, sig) => {
 const processarWebhookAbacatePay = async (body, sig) => {
   try {
     const eventPayload = JSON.parse(body.toString('utf-8'));
-
-    console.log("--- [DEBUG ABACATEPAY] ---");
-    console.log("Webhook completo recebido:");
-    console.log(JSON.stringify(eventPayload, null, 2)); // O '2' formata o JSON para ficar legível
-    console.log("--------------------------");
-
     const eventType = eventPayload.event;
     const billingData = eventPayload.data.billing;
 
-    console.log(`[DEBUG AbacatePay] Tipo de evento extraído: "${eventType}"`);
-    console.log("--------------------------");
-    console.log(`[DEBUG AbacatePay] Status do pagamento: "${billingData.status}"`);
-    console.log("--------------------------");
-
-    // A lógica agora verifica se o status é 'PAID'
     if (eventType === 'billing.paid' && billingData.status === 'PAID') {
       console.log(`🔔 (Webhook) Pagamento PIX confirmado para a cobrança ID: ${billingData.id}`);
 
-      const { data: compraExistente } = await supabase.from('compras').select('id').eq('abacate_billing_id', billingData.id).single();
+      const { data: compraExistente } = await supabase.from('compras').select('id').eq('payment_session_id', billingData.id).single();
       if (compraExistente) {
         console.warn(`(Webhook) Cobrança ${billingData.id} já foi processada. Ignorando.`);
         return;
       }
 
-      console.log(`(Webhook) Registrando a compra no banco de dados para o usuário ${promptData.usuarioId}...`);
+      // --- CORREÇÃO PRINCIPAL: BUSCAR OS DETALHES DA COBRANÇA ---
+      // O webhook não contém os metadados, então buscamos a cobrança direto na API.
+      console.log(`(Webhook) Buscando detalhes da cobrança ${billingData.id} na AbacatePay...`);
+      const respostaApi = await abacatePay.billing.get(billingData.id);
+      const fullBillingData = respostaApi.data;
+      const promptData = fullBillingData.metadata;
+
+      if (!promptData || !promptData.usuarioId) {
+        throw new Error("Metadata (promptData) ou usuarioId não encontrado na cobrança da AbacatePay.");
+      }
+
+      const usuarioId = promptData.usuarioId;
+      // --- FIM DA CORREÇÃO ---
+
+      console.log(`(Webhook) Registrando a compra no banco de dados para o usuário ${usuarioId}...`);
+
+      // --- CORREÇÃO SECUNDÁRIA: ACESSO AO PRECO_ID ---
+      // O 'products' é um array, então acessamos o primeiro item.
+      const precoId = billingData.products && billingData.products.length > 0
+        ? billingData.products[0].externalId
+        : promptData.priceId; // Fallback para o metadata se necessário
+
+      if (!precoId) {
+        throw new Error("preco_id não encontrado no webhook da AbacatePay.");
+      }
+      // --- FIM DA CORREÇÃO ---
+
       const { data: novaCompra, error: compraError } = await supabase.from("compras").insert({
-        usuario_id: promptData.usuarioId,
+        usuario_id: usuarioId, // Agora usamos o ID correto
         payment_session_id: billingData.id,
-        preco_id: billingData.products.externalId,
+        preco_id: precoId,
         valor_total: billingData.amount / 100,
         status_pagamento: "paid",
         status_entrega: "PENDENTE",
