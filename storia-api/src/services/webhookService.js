@@ -77,13 +77,11 @@ const processarWebhookAbacatePay = async (body, sig) => {
         return;
       }
 
-      const usuarioId = billingData.customer.id
-
-      console.log(`(Webhook) Registrando a compra no banco de dados para o usuário ${usuarioId}...`);
+      console.log(`(Webhook) Registrando a compra no banco de dados para o usuário ${billingData.customer.id}...`);
       const { data: novaCompra, error: compraError } = await supabase.from("compras").insert({
-        usuario_id: usuarioId,
+        usuario_id: billingData.customer.id,
         abacate_billing_id: billingData.id,
-        preco_id: priceId,
+        preco_id: billingData.products.externalId,
         valor_total: billingData.amount / 100,
         status_pagamento: "paid",
         status_entrega: "PENDENTE",
