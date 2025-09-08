@@ -27,14 +27,17 @@ function normalizarJSON(jsonString) {
  * @returns {Promise<object>} - Um objeto com os termos refinados, ex: { setor, tipoNegocio, objetivoPrincipal }.
  */
 
-async function refinarTermosDeBusca(promptData) {
+const refinarTermosDeBusca = async (promptData) => {
   console.log('🧠 Refinando termos de busca com a IA...');
+
+  // Garante que promptData seja um objeto, fazendo o "parse" se for uma string.
+  const data = typeof promptData === 'string' ? JSON.parse(promptData) : promptData;
 
   const promptDeRefinamento = `
     Analise os seguintes dados de um cliente:
-    - Setor: "${promptData.setor}"
-    - Tipo de Negócio: "${promptData.tipoNegocio}"
-    - Objetivo: "${promptData.objetivoPrincipal}"
+    - Setor: "${data.setor}"
+    - Tipo de Negócio: "${data.tipoNegocio}"
+    - Objetivo: "${data.objetivoPrincipal}"
 
     Sua tarefa é traduzir esses termos, que podem ser genéricos, para categorias de mercado profissionais e específicas que um especialista em marketing usaria para uma pesquisa de mercado.
 
@@ -52,13 +55,14 @@ async function refinarTermosDeBusca(promptData) {
     const termosRefinados = JSON.parse(jsonLimpo);
 
     console.log('✅ Termos refinados:', termosRefinados);
-    // Retorna os dados originais, mas com os valores refinados pela IA
-    return { ...promptData, ...termosRefinados };
+
+    // Retorna os dados originais (agora como objeto), atualizados com os termos refinados pela IA
+    return { ...data, ...termosRefinados };
 
   } catch (error) {
     console.warn("Falha ao refinar os termos de busca. Usando os termos originais.", error.message);
     // Em caso de falha, retornamos os dados originais para não quebrar o fluxo.
-    return promptData;
+    return data;
   }
 }
 
