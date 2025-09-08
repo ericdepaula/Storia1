@@ -90,7 +90,6 @@ const criarCobrancaPix = async (priceId, promptData, usuarioId, taxId) => {
       preco_id: priceId,
       valor_total: plano.precoEmCentavos / 100,
       status_pagamento: "PENDENTE",
-      status_entrega: "",
       informacao_conteudo: promptData,
     });
 
