@@ -58,10 +58,10 @@ const processarWebhookAbacatePay = async (body, sig) => {
     console.log("Webhook completo recebido:");
     console.log(JSON.stringify(eventPayload, null, 2)); // O '2' formata o JSON para ficar legível
     console.log("--------------------------");
-    
+
     const eventType = eventPayload.event;
     const billingData = eventPayload.data.billing;
-    
+
     console.log(`[DEBUG AbacatePay] Tipo de evento extraído: "${eventType}"`);
     console.log("--------------------------");
     console.log(`[DEBUG AbacatePay] Status do pagamento: "${billingData.status}"`);
@@ -77,9 +77,6 @@ const processarWebhookAbacatePay = async (body, sig) => {
         return;
       }
 
-      const { usuarioId, priceId, ...promptData } = billingData.metadata;
-      if (!usuarioId || !priceId) throw new Error("Webhook da AbacatePay sem 'usuarioId' ou 'priceId' nos metadados.");
-
       console.log(`(Webhook) Registrando a compra no banco de dados para o usuário ${usuarioId}...`);
       const { data: novaCompra, error: compraError } = await supabase.from("compras").insert({
         usuario_id: usuarioId,
@@ -91,6 +88,7 @@ const processarWebhookAbacatePay = async (body, sig) => {
       }).select().single();
 
       if (compraError) throw new Error(`Erro CRÍTICO ao salvar a compra PIX: ${compraError.message}`);
+
       console.log(`🛒 Compra PIX ${novaCompra.id} registrada com sucesso.`);
 
       console.log(`(Webhook) Chamando o serviço de geração de conteúdo...`);
