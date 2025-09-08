@@ -86,7 +86,7 @@ const criarCobrancaPix = async (priceId, promptData, usuarioId, taxId) => {
     const { error: insertError } = await supabase.from("compras").insert({
       usuario_id: usuarioId,
       payment_session_id: abacateData.id,
-      produto_id: abacateData.products.id,
+      produto_id: abacateData.products[0].id,
       preco_id: priceId,
       valor_total: plano.precoEmCentavos / 100,
       status_pagamento: "PENDENTE",
