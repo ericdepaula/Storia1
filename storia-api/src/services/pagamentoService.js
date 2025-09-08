@@ -71,10 +71,9 @@ const criarCobrancaPix = async (priceId, promptData, usuarioId, taxId) => {
     };
 
     console.log(`🥑 Criando cobrança PIX para ${usuario.email}...`);
-    const respostaApi = await abacatePay.billing.create(billingData);
-    const novaCobranca = respostaApi.data;
+    const novaCobranca = await abacatePay.billing.create(billingData);
 
-    if (!novaCobranca || !novaCobranca.id) {
+    if (!novaCobranca || !novaCobranca.payment_url) {
       console.error("Resposta inválida da AbacatePay:", respostaApi);
       throw new Error('Falha ao criar a cobrança na AbacatePay.');
     }
