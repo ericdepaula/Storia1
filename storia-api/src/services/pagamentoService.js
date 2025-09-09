@@ -67,10 +67,13 @@ const criarCobrancaPix = async (priceId, promptData, usuarioId, taxId) => {
         email: usuario.email,
         taxId,
       },
+      // A API da AbacatePay espera um objeto plano de chave-valor.
+      // Aninhar um JSON como string pode não ser suportado.
+      // A melhor abordagem é "achatar" os dados do prompt no metadata.
       metadata: {
         usuarioId: usuarioId,
-        promptData: JSON.stringify(promptData)
-      }
+        ...promptData // "Espalha" as chaves de promptData (setor, tipoNegocio, etc) aqui dentro
+      },
     };
 
     console.log(`🥑 Criando cobrança PIX no valor de ${plano.precoEmCentavos / 100} para ${usuario.email}...`);

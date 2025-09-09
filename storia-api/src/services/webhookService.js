@@ -75,11 +75,17 @@ const processarWebhookAbacatePay = async (body, sig) => {
 
       // 2. Extrair dados do payload do webhook, incluindo os metadados que enviamos.
       const metadata = billingData.metadata;
-      if (!metadata || !metadata.usuarioId || !metadata.promptData) {
-        throw new Error(`Webhook AbacatePay ${billingId} não contém metadados essenciais (usuarioId, promptData).`);
+      // Agora verificamos as chaves individuais que esperamos.
+      if (!metadata || !metadata.usuarioId || !metadata.setor || !metadata.tipoNegocio || !metadata.objetivoPrincipal) {
+        throw new Error(`Webhook AbacatePay ${billingId} não contém metadados essenciais (usuarioId e dados do prompt).`);
       }
       const usuarioId = metadata.usuarioId;
-      const promptData = JSON.parse(metadata.promptData);
+      // Reconstruímos o objeto promptData a partir dos metadados recebidos.
+      const promptData = {
+        setor: metadata.setor,
+        tipoNegocio: metadata.tipoNegocio,
+        objetivoPrincipal: metadata.objetivoPrincipal,
+      };
       const priceId = billingData.products[0].externalId;
       const plano = planosDeProduto[priceId];
       if (!plano) {
