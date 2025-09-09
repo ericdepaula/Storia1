@@ -12,6 +12,7 @@ import Dashboard from "./pages/Dashboard";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "./context/AuthContext";
 import React, { useEffect } from "react"; // 3. Importe o useEffect
+import PaymentSuccess from "./pages/PaymentSuccess";
 
 // Componente Wrapper para lidar com a lógica de renderização e redirecionamento
 const AppContent = () => {
@@ -48,6 +49,8 @@ const AppContent = () => {
         path="/signup"
         element={token ? <Navigate to="/dashboard" /> : <SignUp />}
       />
+
+      <Route path="/payment-success" element={<PaymentSuccess />} />
 
       <Route
         path="/dashboard/*" // Use /* para cobrir sub-rotas do dashboard

@@ -60,7 +60,7 @@ const criarCobrancaPix = async (priceId, promptData, usuarioId, taxId) => {
         }
       ],
       returnUrl: `${frontendUrl}/dashboard`,
-      completionUrl: `${frontendUrl}/dashboard`,
+      completionUrl: `${frontendUrl}/payment-success`,
       customer: {
         name: usuario.nome,
         cellphone: (usuario.telefone || '00000000000').replace(/\D/g, ''),

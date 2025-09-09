@@ -1,3 +1,4 @@
+// Arquivo: storia-cliente/src/components/PaidContentForm.tsx
 import React, { useState } from "react";
 import { Loader2, CreditCard, QrCode } from "lucide-react";
 import TimedSnackbar from "./TimedSnackbar";
@@ -5,7 +6,7 @@ import ContentForm from "./ContentForm";
 import Modal from "./Modal";
 import EmbeddedCheckout from "./EmbeddedCheckout";
 import CpfInputModal from "./CpfInputModal";
-import PixCheckoutModal from "./PixCheckoutModal";
+import PixCheckoutModal from "./PixCheckoutModal"; // Importado corretamente
 
 interface PaidContentFormProps {
   onGenerationSuccess: () => void;
@@ -14,7 +15,6 @@ interface PaidContentFormProps {
 const PaidContentForm: React.FC<PaidContentFormProps> = ({
   onGenerationSuccess,
 }) => {
-  // ... (estados do formulário permanecem os mesmos)
   const [formData, setFormData] = useState({
     setor: "",
     tipoNegocio: "",
@@ -27,8 +27,6 @@ const PaidContentForm: React.FC<PaidContentFormProps> = ({
   const [isStripeModalOpen, setIsStripeModalOpen] = useState(false);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [isCpfModalOpen, setIsCpfModalOpen] = useState(false);
-
-  // 2. Simplificamos o estado do Pix para guardar apenas a URL
   const [pixPaymentUrl, setPixPaymentUrl] = useState<string | null>(null);
   const [isPixCheckoutOpen, setIsPixCheckoutOpen] = useState(false);
 
@@ -98,7 +96,6 @@ const PaidContentForm: React.FC<PaidContentFormProps> = ({
         setClientSecret(data.clientSecret);
         setIsStripeModalOpen(true);
       } else {
-        // 3. Salvamos a URL e abrimos o novo modal
         setPixPaymentUrl(data.paymentUrl);
         setIsPixCheckoutOpen(true);
       }
@@ -111,14 +108,11 @@ const PaidContentForm: React.FC<PaidContentFormProps> = ({
     }
   };
 
+  // Função de sucesso agora apenas recarrega a página
   const handlePaymentSuccess = () => {
     setIsStripeModalOpen(false);
-    setIsPixCheckoutOpen(false); // Fecha o modal de checkout do Pix
-    onGenerationSuccess();
-    setSubmitStatus({
-      type: "success",
-      message: "Pagamento confirmado! Seu conteúdo já está sendo preparado.",
-    });
+    setIsPixCheckoutOpen(false);
+    window.location.reload(); // Força a atualização da página
   };
 
   return (
@@ -252,12 +246,14 @@ const PaidContentForm: React.FC<PaidContentFormProps> = ({
         isLoading={isLoading}
       />
 
-      {/* 4. Renderiza o novo modal de checkout do PIX */}
+      {/* O modal do PIX agora é chamado diretamente aqui */}
       <PixCheckoutModal
         isOpen={isPixCheckoutOpen}
-        onClose={() => setIsPixCheckoutOpen(false)}
+        onClose={() => {
+          setIsPixCheckoutOpen(false);
+          window.location.reload(); // Recarrega também se fechar manualmente
+        }}
         checkoutUrl={pixPaymentUrl}
-        onPaymentSuccess={handlePaymentSuccess}
       />
     </>
   );
