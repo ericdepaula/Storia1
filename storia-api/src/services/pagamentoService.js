@@ -82,21 +82,21 @@ const criarCobrancaPix = async (priceId, promptData, usuarioId, taxId) => {
       throw new Error('Falha ao criar a cobrança na AbacatePay.');
     }
 
-    console.log(`📝 Registrando intenção de compra para a cobrança ${abacateData.id}...`);
-    const { error: insertError } = await supabase.from("compras").insert({
-      usuario_id: usuarioId,
-      payment_session_id: abacateData.id,
-      produto_id: abacateData.products[0].id,
-      preco_id: priceId,
-      valor_total: plano.precoEmCentavos / 100,
-      status_pagamento: "PENDENTE",
-      informacao_conteudo: promptData,
-    });
+    // console.log(`📝 Registrando intenção de compra para a cobrança ${abacateData.id}...`);
+    // const { error: insertError } = await supabase.from("compras").insert({
+    //   usuario_id: usuarioId,
+    //   payment_session_id: abacateData.id,
+    //   produto_id: abacateData.products[0].id,
+    //   preco_id: priceId,
+    //   valor_total: plano.precoEmCentavos / 100,
+    //   status_pagamento: "PENDENTE",
+    //   informacao_conteudo: promptData,
+    // });
 
-    if (insertError) {
-      console.error("Erro ao salvar a intenção de compra:", insertError);
-      throw new Error(`Não foi possível registrar a compra: ${insertError.message}`);
-    }
+    // if (insertError) {
+    //   console.error("Erro ao salvar a intenção de compra:", insertError);
+    //   throw new Error(`Não foi possível registrar a compra: ${insertError.message}`);
+    // }
 
     return {
       paymentUrl: abacateData.url,
