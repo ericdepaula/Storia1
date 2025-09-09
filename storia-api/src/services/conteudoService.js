@@ -34,12 +34,27 @@ const refinarTermosDeBusca = async (promptData) => {
   const data = typeof promptData === 'string' ? JSON.parse(promptData) : promptData;
 
   const promptDeRefinamento = `
-    Analise os seguintes dados de um cliente:
+    Sua tarefa é extrair e otimizar os termos-chave de um cliente para uma pesquisa de mercado. O objetivo é clareza e concisão, sem alterar o nicho ou a intenção original.
+
+    DADOS DO CLIENTE:
     - Setor: "${data.setor}"
     - Tipo de Negócio: "${data.tipoNegocio}"
     - Objetivo: "${data.objetivoPrincipal}"
 
-    Sua tarefa é traduzir esses termos, que podem ser genéricos, para categorias de mercado profissionais e específicas que um especialista em marketing usaria para uma pesquisa de mercado.
+    REGRAS:
+    1.  **NÃO INVENTE** informações, setores ou objetivos que não foram mencionados.
+    2.  **MANTENHA A ESSÊNCIA** do que o cliente pediu. Apenas melhore a clareza.
+    3.  **SEJA DIRETO**: Se um termo já estiver bom e claro, apenas repita-o.
+
+    EXEMPLO RUIM (O que NÃO fazer):
+    - Input: { "setor": "comida", "tipoNegocio": "carrinho de cachorro-quente", "objetivoPrincipal": "vender mais na rua" }
+    - Output: { "setor": "Alimentação Gourmet", "tipoNegocio": "food truck de alta gastronomia", "objetivoPrincipal": "expansão de franquias" }
+    (Isto está errado porque inventou 'Gourmet', 'alta gastronomia' e mudou completamente o objetivo).
+
+    EXEMPLO BOM (O que fazer):
+    - Input: { "setor": "comida", "tipoNegocio": "carrinho de cachorro-quente", "objetivoPrincipal": "vender mais na rua" }
+    - Output: { "setor": "Alimentação de Rua", "tipoNegocio": "venda de cachorro-quente", "objetivoPrincipal": "aumentar vendas locais" }
+    (Isto está correto porque apenas clarificou os termos sem mudar o conceito).
 
     Responda APENAS com um objeto JSON válido com a seguinte estrutura:
     {
