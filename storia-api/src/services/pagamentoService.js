@@ -67,6 +67,10 @@ const criarCobrancaPix = async (priceId, promptData, usuarioId, taxId) => {
         email: usuario.email,
         taxId,
       },
+      metadata: {
+        usuarioId: usuarioId,
+        promptData: JSON.stringify(promptData)
+      }
     };
 
     console.log(`🥑 Criando cobrança PIX no valor de ${plano.precoEmCentavos / 100} para ${usuario.email}...`);

@@ -3,6 +3,7 @@ import AbacatePayModule from "abacatepay-nodejs-sdk";
 import dotenv from "dotenv";
 import supabase from "../config/supabaseClient.js";
 import { conteudoService } from "./conteudoService.js";
+import { planosDeProduto } from "../config/stripeConfig.js";
 
 dotenv.config();
 
@@ -60,36 +61,51 @@ const processarWebhookAbacatePay = async (body, sig) => {
       const billingId = billingData.id;
       console.log(`🔔 (Webhook) Pagamento PIX confirmado para a cobrança ID: ${billingId}`);
 
-      const { data: compra, error: findError } = await supabase
+      // 1. Verificação de Idempotência: Evita processar o mesmo webhook duas vezes.
+      const { data: compraExistente } = await supabase
         .from('compras')
-        .select('*')
+        .select('id')
         .eq('payment_session_id', billingId)
         .single();
 
-      if (findError || !compra) {
-        throw new Error(`Compra com payment_session_id ${billingId} não encontrada.`);
-      }
-
-      if (compra.status_pagamento === 'paid') {
-        console.warn(`(Webhook) Cobrança ${billingId} já foi processada. Ignorando.`);
+      if (compraExistente) {
+        console.warn(`(Webhook) Cobrança AbacatePay ${billingId} já foi processada. Ignorando.`);
         return;
       }
 
-      console.log(`(Webhook) Atualizando status da compra ID: ${compra.id} para PAGO.`);
-      const { error: updateError } = await supabase
-        .from('compras')
-        .update({ status_pagamento: 'paid' })
-        .eq('id', compra.id);
-
-      if (updateError) {
-        throw new Error(`Erro ao atualizar a compra ${compra.id}: ${updateError.message}`);
+      // 2. Extrair dados do payload do webhook, incluindo os metadados que enviamos.
+      const metadata = billingData.metadata;
+      if (!metadata || !metadata.usuarioId || !metadata.promptData) {
+        throw new Error(`Webhook AbacatePay ${billingId} não contém metadados essenciais (usuarioId, promptData).`);
+      }
+      const usuarioId = metadata.usuarioId;
+      const promptData = JSON.parse(metadata.promptData);
+      const priceId = billingData.products[0].externalId;
+      const plano = planosDeProduto[priceId];
+      if (!plano) {
+        throw new Error(`Plano com priceId ${priceId} não encontrado na configuração.`);
       }
 
-      console.log(`(Webhook) Chamando o serviço de geração de conteúdo para a compra ${compra.id}...`);
-      
-      await conteudoService.gerarConteudoPago(compra, compra.informacao_conteudo); 
-      
-      console.log(`(Webhook) Serviço de geração de conteúdo finalizado para a compra ${compra.id}.`);
+      // 3. Criar o registro da compra no banco de dados.
+      const { data: novaCompra, error: compraError } = await supabase
+        .from("compras")
+        .insert({
+          usuario_id: usuarioId,
+          payment_session_id: billingId,
+          produto_id: plano.produtoId,
+          preco_id: priceId,
+          valor_total: billingData.value / 100,
+          status_pagamento: "paid",
+          status_entrega: "PENDENTE",
+          informacao_conteudo: promptData,
+        })
+        .select()
+        .single();
+
+      if (compraError) throw new Error(`Erro CRÍTICO ao salvar a compra AbacatePay: ${compraError.message}`);
+
+      console.log(`🛒 Compra AbacatePay (PIX) ${novaCompra.id} registrada com sucesso.`);
+      await conteudoService.gerarConteudoPago(novaCompra, promptData);
     } else {
       console.log(`(Webhook) Evento "${eventType}" com status "${billingData.status}" ignorado.`);
     }
