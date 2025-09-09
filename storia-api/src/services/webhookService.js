@@ -61,57 +61,46 @@ const processarWebhookAbacatePay = async (body, sig) => {
       const billingId = billingData.id;
       console.log(`🔔 (Webhook) Pagamento PIX confirmado para a cobrança ID: ${billingId}`);
 
-      // 1. Verificação de Idempotência: Evita processar o mesmo webhook duas vezes.
-      const { data: compraExistente } = await supabase
+      // 1. Encontrar a compra PENDENTE no nosso banco.
+      // A idempotência é garantida porque só vamos processar compras pendentes.
+      const { data: compraPendente, error: findError } = await supabase
         .from('compras')
-        .select('id')
+        .select('*') // Pega todos os dados da compra, incluindo `informacao_conteudo`
         .eq('payment_session_id', billingId)
+        .eq('status_pagamento', 'PENDENTE') // Importante!
         .single();
 
-      if (compraExistente) {
-        console.warn(`(Webhook) Cobrança AbacatePay ${billingId} já foi processada. Ignorando.`);
+      if (findError || !compraPendente) {
+        // Se não encontrar, pode ser que já foi processado ou nunca existiu.
+        console.warn(`(Webhook) Compra pendente para a cobrança AbacatePay ${billingId} não encontrada ou já processada. Ignorando.`);
+        if (findError && findError.code !== 'PGRST116') { // PGRST116: no rows found
+            console.error("Erro ao buscar compra pendente:", findError.message);
+        }
         return;
       }
 
-      // 2. Extrair dados do payload do webhook, incluindo os metadados que enviamos.
-      const metadata = billingData.metadata;
-      // Agora verificamos as chaves individuais que esperamos.
-      if (!metadata || !metadata.usuarioId || !metadata.setor || !metadata.tipoNegocio || !metadata.objetivoPrincipal) {
-        throw new Error(`Webhook AbacatePay ${billingId} não contém metadados essenciais (usuarioId e dados do prompt).`);
-      }
-      const usuarioId = metadata.usuarioId;
-      // Reconstruímos o objeto promptData a partir dos metadados recebidos.
-      const promptData = {
-        setor: metadata.setor,
-        tipoNegocio: metadata.tipoNegocio,
-        objetivoPrincipal: metadata.objetivoPrincipal,
-      };
-      const priceId = billingData.products[0].externalId;
-      const plano = planosDeProduto[priceId];
-      if (!plano) {
-        throw new Error(`Plano com priceId ${priceId} não encontrado na configuração.`);
-      }
-
-      // 3. Criar o registro da compra no banco de dados.
-      const { data: novaCompra, error: compraError } = await supabase
+      // 2. Atualizar o status da compra para "pago" e preparar para entrega.
+      const { data: compraAtualizada, error: updateError } = await supabase
         .from("compras")
-        .insert({
-          usuario_id: usuarioId,
-          payment_session_id: billingId,
-          produto_id: plano.produtoId,
-          preco_id: priceId,
-          valor_total: billingData.value / 100,
+        .update({
           status_pagamento: "paid",
-          status_entrega: "PENDENTE",
-          informacao_conteudo: promptData,
+          status_entrega: "PENDENTE", // Agora sim, a entrega está pendente.
         })
+        .eq('id', compraPendente.id)
         .select()
         .single();
 
-      if (compraError) throw new Error(`Erro CRÍTICO ao salvar a compra AbacatePay: ${compraError.message}`);
+      if (updateError) {
+        throw new Error(`Erro CRÍTICO ao atualizar a compra AbacatePay ${compraPendente.id}: ${updateError.message}`);
+      }
 
-      console.log(`🛒 Compra AbacatePay (PIX) ${novaCompra.id} registrada com sucesso.`);
-      await conteudoService.gerarConteudoPago(novaCompra, promptData);
+      console.log(`🛒 Compra AbacatePay (PIX) ${compraAtualizada.id} atualizada para PAGA.`);
+
+      // 3. Gerar o conteúdo usando os dados que já temos no banco.
+      // `compraPendente` já tem `informacao_conteudo` (o promptData).
+      // Usamos `compraAtualizada` que é o registro mais recente.
+      await conteudoService.gerarConteudoPago(compraAtualizada, compraAtualizada.informacao_conteudo);
+
     } else {
       console.log(`(Webhook) Evento "${eventType}" com status "${billingData.status}" ignorado.`);
     }

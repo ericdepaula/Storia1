@@ -67,13 +67,7 @@ const criarCobrancaPix = async (priceId, promptData, usuarioId, taxId) => {
         email: usuario.email,
         taxId,
       },
-      // A API da AbacatePay espera um objeto plano de chave-valor.
-      // Aninhar um JSON como string pode não ser suportado.
-      // A melhor abordagem é "achatar" os dados do prompt no metadata.
-      metadata: {
-        usuarioId: usuarioId,
-        ...promptData // "Espalha" as chaves de promptData (setor, tipoNegocio, etc) aqui dentro
-      },
+      // A metadata da AbacatePay está sendo inconsistente, então salvaremos os dados do prompt antes.
     };
 
     console.log(`🥑 Criando cobrança PIX no valor de ${plano.precoEmCentavos / 100} para ${usuario.email}...`);
@@ -89,21 +83,22 @@ const criarCobrancaPix = async (priceId, promptData, usuarioId, taxId) => {
       throw new Error('Falha ao criar a cobrança na AbacatePay.');
     }
 
-    // console.log(`📝 Registrando intenção de compra para a cobrança ${abacateData.id}...`);
-    // const { error: insertError } = await supabase.from("compras").insert({
-    //   usuario_id: usuarioId,
-    //   payment_session_id: abacateData.id,
-    //   produto_id: abacateData.products[0].id,
-    //   preco_id: priceId,
-    //   valor_total: plano.precoEmCentavos / 100,
-    //   status_pagamento: "PENDENTE",
-    //   informacao_conteudo: promptData,
-    // });
+    console.log(`📝 Registrando intenção de compra para a cobrança ${abacateData.id}...`);
+    const { error: insertError } = await supabase.from("compras").insert({
+      usuario_id: usuarioId,
+      payment_session_id: abacateData.id,
+      produto_id: plano.produtoId, // Usamos o ID do nosso sistema
+      preco_id: priceId,
+      valor_total: plano.precoEmCentavos / 100,
+      status_pagamento: "PENDENTE",
+      status_entrega: "NAO_APLICAVEL", // A entrega só é pendente após o pagamento
+      informacao_conteudo: promptData,
+    });
 
-    // if (insertError) {
-    //   console.error("Erro ao salvar a intenção de compra:", insertError);
-    //   throw new Error(`Não foi possível registrar a compra: ${insertError.message}`);
-    // }
+    if (insertError) {
+      console.error("Erro ao salvar a intenção de compra:", insertError);
+      throw new Error(`Não foi possível registrar a compra: ${insertError.message}`);
+    }
 
     return {
       paymentUrl: abacateData.url,
