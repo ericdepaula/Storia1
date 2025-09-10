@@ -49,7 +49,7 @@ const autenticarUsuario = async (credentials) => {
   }
 
   // Cria o "crachá digital" (JWT)
-  const payload = { id: usuario.id, email: usuario.email, nome: usuario.nome };
+  const payload = { id: usuario.id, email: usuario.email, nome: usuario.nome, telefone: usuario.telefone };
   const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '2h' });
 
   await supabase.from('usuarios').update({ ultimo_acesso: new Date().toISOString() }).eq('id', usuario.id);
@@ -90,7 +90,7 @@ const handleGoogleSignIn = async (session) => {
         nome: user.user_metadata.full_name || user.email,
         email: user.email,
         senha: senhaHash,
-        telefone: "Não informado",
+        telefone: user.phone || "Não informado",
       })
       .select()
       .single();
@@ -99,7 +99,7 @@ const handleGoogleSignIn = async (session) => {
     }
     usuario = novoUsuario;
   }
-  const payload = { id: usuario.id, email: usuario.email, nome: usuario.nome };
+  const payload = { id: usuario.id, email: usuario.email, nome: usuario.nome, telefone: usuario.telefone };
   const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '2h' });
 
   await supabase.from('usuarios').update({ ultimo_acesso: new Date().toISOString() }).eq('id', usuario.id);
@@ -125,10 +125,42 @@ const listarTodosUsuarios = async () => {
   }
 };
 
+const atualizarDadosUsuario = async (usuarioId, dados) => {
+  const { nome, telefone, senha } = dados;
+
+  const dadosParaAtualizar = {};
+  if (nome) dadosParaAtualizar.nome = nome;
+  if (telefone) dadosParaAtualizar.telefone = telefone;
+  if (senha) {
+    const senhaHash = await bcrypt.hash(senha, parseInt(process.env.PASSWORD_SALT_ROUNDS));
+    dadosParaAtualizar.senha = senhaHash;
+  }
+
+  if (Object.keys(dadosParaAtualizar).length === 0) {
+    throw { status: 400, message: 'Nenhum dado para atualizar.' };
+  }
+
+  const { data: usuarioAtualizado, error: updateError } = await supabase
+    .from('usuarios')
+    .update(dadosParaAtualizar)
+    .eq('id', usuarioId)
+    .select()
+    .single();
+
+  if (updateError) {
+    throw { status: 500, message: `Erro ao atualizar usuário: ${updateError.message}` };
+  }
+
+  const payload = { id: usuarioAtualizado.id, email: usuarioAtualizado.email, nome: usuarioAtualizado.nome, telefone: usuarioAtualizado.telefone };
+  const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '2h' });
+
+  return { status: 200, message: 'Usuário atualizado com sucesso!', usuario: payload, token: token };
+};
 
 export const usuarioService = {
   cadastrarUsuario,
   autenticarUsuario,
   handleGoogleSignIn,
   listarTodosUsuarios,
+  atualizarDadosUsuario,
 };

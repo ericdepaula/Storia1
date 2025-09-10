@@ -1,5 +1,6 @@
 import { Router } from 'express';
-import { registrar, login, obterTodosUsuarios, googleCallback } from '../controllers/usuarioController.js';
+import { registrar, login, obterTodosUsuarios, googleCallback, atualizarUsuario } from '../controllers/usuarioController.js';
+import { authMiddleware } from '../middleware/authMiddleware.js';
 
 const router = Router();
 
@@ -17,5 +18,8 @@ router.post('/auth/google/callback', googleCallback)
 // Endereço final: GET /usuarios
 router.get('/', obterTodosUsuarios);
 
+// ROTA PARA ATUALIZAR USUÁRIO
+// Endereço final: GET /usuarios/atualizar
+router.put('/atualizar', authMiddleware, atualizarUsuario);
 
 export default router;

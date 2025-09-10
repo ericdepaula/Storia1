@@ -52,3 +52,14 @@ export const obterTodosUsuarios = async (req, res) => {
       .send(erro.message || "Ocorreu um problema inesperado.");
   }
 };
+
+export const atualizarUsuario = async (req, res) => {
+  try {
+    const usuarioId = req.user.id;
+    const dadosAtualizados = req.body;
+    const resultado = await usuarioService.atualizarDadosUsuario(usuarioId, dadosAtualizados);
+    res.status(resultado.status).json(resultado);
+  } catch (erro) {
+    res.status(erro.status || 500).json({ message: erro.message || 'Ocorreu um problema inesperado.' });
+  }
+}

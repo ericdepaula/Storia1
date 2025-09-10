@@ -1,12 +1,9 @@
 import React, { useState } from "react";
-// useNavigate não é mais necessário para o logout, mas pode ser usado em outros lugares.
 import { User, LogOut, Home, FileText, Settings, Menu, X } from "lucide-react";
 import TabInicio from "../components/tabs/TabInicio";
+import TabConfiguracoes from "../components/tabs/TabConfiguracoes"; // Importe o novo componente
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "../config/supabaseClient";
-
-// A função getUserFromStorage não é mais a fonte da verdade.
-// Podemos pegar o usuário diretamente do nosso contexto.
 
 const menuItems = [
   { key: "inicio", label: "Inicio", icon: <Home className="w-5 h-5 mr-2" /> },
@@ -24,18 +21,14 @@ const menuItems = [
 
 const Dashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState("inicio");
-
-  // Pegue apenas o 'user' do contexto. A função de logout será a do supabase.
   const { user } = useAuth();
-
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-const handleLogout = async () => {
+  const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) {
       console.error("Erro ao fazer logout:", error.message);
     }
-    // Não precisamos de navegar daqui. O AuthContext vai reagir e o App.tsx vai redirecionar.
   };
 
   return (
@@ -100,7 +93,6 @@ const handleLogout = async () => {
             <div className="flex items-center space-x-3">
               <User className="w-7 h-7 text-blue-600" />
               <div>
-                {/* Usamos o usuário do contexto, que é sempre atualizado */}
                 <div className="font-semibold text-gray-900">{user?.nome}</div>
                 <div className="text-xs text-gray-500">{user?.email}</div>
               </div>
@@ -116,12 +108,7 @@ const handleLogout = async () => {
               <p>Em construção...</p>
             </div>
           )}
-          {activeTab === "configuracoes" && (
-            <div>
-              <h2 className="text-2xl font-bold mb-4">Configurações</h2>
-              <p>Em construção...</p>
-            </div>
-          )}
+          {activeTab === "configuracoes" && <TabConfiguracoes />}
         </section>
       </main>
     </div>

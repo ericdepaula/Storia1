@@ -41,6 +41,16 @@ const SignUp = () => {
   const [passwordStrength, setPasswordStrength] = useState({ score: 0, feedback: "" });
   const navigate = useNavigate();
 
+  const applyPhoneMask = (value: string) => {
+    if (!value) return "";
+    // Remove tudo que não é dígito, limita a 11 caracteres e aplica a máscara
+    value = value.replace(/\D/g, '').substring(0, 11);
+    value = value.replace(/^(\d{2})(\d)/, '($1) $2');
+    value = value.replace(/(\d)(\d{4})$/, '$1-$2');
+    return value;
+  };
+
+
   const validateEmail = (email: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
@@ -119,7 +129,11 @@ const SignUp = () => {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
-    const newValue: string | boolean = type === "checkbox" ? checked : value;
+    let newValue: string | boolean = type === "checkbox" ? checked : value;
+
+    if (name === 'telefone') {
+      newValue = applyPhoneMask(value);
+    }
 
 
     // As senhas não estão mais no estado, então não precisamos lidar com elas aqui.
@@ -179,7 +193,7 @@ const SignUp = () => {
         body: JSON.stringify({
           nome: formData.fullName,
           email: formData.email,
-          telefone: formData.telefone,
+          telefone: formData.telefone.replace(/\D/g, ''), // Envia apenas os dígitos
           senha: password,
         }),
       });
